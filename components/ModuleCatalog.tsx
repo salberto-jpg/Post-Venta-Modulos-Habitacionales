@@ -4,12 +4,14 @@ import { getAllModuleTypes, createModuleType } from '../services/supabaseService
 import { type ModuleType } from '../types';
 import Spinner from './Spinner';
 import ModuleTypeDetails from './ModuleTypeDetails';
+import FileDropzone from './FileDropzone';
 
 const ModuleCatalog: React.FC = () => {
     const [moduleTypes, setModuleTypes] = useState<ModuleType[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedModuleType, setSelectedModuleType] = useState<ModuleType | null>(null);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [previewImage, setPreviewImage] = useState<string | null>(null);
     
     // Create Form State
     const [newModelName, setNewModelName] = useState('');
@@ -50,6 +52,11 @@ const ModuleCatalog: React.FC = () => {
         }
     };
 
+    const handleImageClick = (e: React.MouseEvent, imageUrl: string) => {
+        e.stopPropagation();
+        setPreviewImage(imageUrl);
+    };
+
     if (loading) {
         return <div className="flex justify-center items-center h-full"><Spinner /></div>;
     }
@@ -78,9 +85,14 @@ const ModuleCatalog: React.FC = () => {
                         onClick={() => setSelectedModuleType(model)}
                         className="bg-white rounded-lg shadow-md overflow-hidden border border-slate-200 hover:shadow-lg hover:border-sky-300 transition-all cursor-pointer group flex flex-col h-full"
                     >
-                        <div className="h-48 bg-slate-100 relative overflow-hidden flex items-center justify-center">
+                        <div className="h-48 bg-white relative overflow-hidden flex items-center justify-center p-4 border-b border-slate-100">
                             {model.imageUrl ? (
-                                <img src={model.imageUrl} alt={model.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                <img 
+                                    src={model.imageUrl} 
+                                    alt={model.name} 
+                                    className="w-full h-full object-contain hover:scale-105 transition-transform duration-300" 
+                                    onClick={(e) => handleImageClick(e, model.imageUrl!)}
+                                />
                             ) : (
                                 <CubeIcon className="h-16 w-16 text-slate-300" />
                             )}
@@ -123,18 +135,13 @@ const ModuleCatalog: React.FC = () => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700">Imagen de Portada</label>
-                                <input 
-                                    type="file" 
-                                    accept="image/*"
-                                    onChange={e => setSelectedFile(e.target.files ? e.target.files[0] : null)}
-                                    className="mt-1 block w-full text-sm text-slate-500
-                                        file:mr-4 file:py-2 file:px-4
-                                        file:rounded-full file:border-0
-                                        file:text-sm file:font-semibold
-                                        file:bg-sky-50 file:text-sky-700
-                                        hover:file:bg-sky-100"
+                                <label className="block text-sm font-medium text-slate-700 mb-2">Imagen de Portada</label>
+                                <FileDropzone 
+                                    onFilesSelected={(files) => setSelectedFile(files[0])}
+                                    accept={{ 'image/*': [] }}
+                                    maxFiles={1}
                                 />
+                                {selectedFile && <p className="text-xs text-emerald-600 mt-1">Archivo seleccionado: {selectedFile.name}</p>}
                             </div>
                             <div className="flex justify-end space-x-3 pt-2">
                                 <button type="button" onClick={() => setIsCreateModalOpen(false)} className="px-4 py-2 text-sm text-slate-700 hover:bg-slate-200 rounded-md">Cancelar</button>
@@ -143,6 +150,31 @@ const ModuleCatalog: React.FC = () => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Image Zoom Modal */}
+            {previewImage && (
+                <div 
+                    className="fixed inset-0 bg-black bg-opacity-90 z-[60] flex justify-center items-center p-4" 
+                    onClick={() => setPreviewImage(null)}
+                >
+                    <div className="relative max-w-full max-h-full">
+                        <button 
+                            className="absolute -top-12 right-0 text-white hover:text-gray-300 focus:outline-none"
+                            onClick={() => setPreviewImage(null)}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                        <img 
+                            src={previewImage} 
+                            alt="Full size preview" 
+                            className="max-h-[90vh] max-w-[90vw] object-contain rounded shadow-2xl"
+                            onClick={(e) => e.stopPropagation()} 
+                        />
                     </div>
                 </div>
             )}

@@ -1,16 +1,17 @@
 
 import React, { useState, useEffect } from 'react';
-import { getAllModuleTypes, addModuleToClient } from '../services/supabaseService';
-import { type ModuleType } from '../types';
+import { getAllModuleTypes, addModuleToClient, updateModule } from '../services/supabaseService';
+import { type ModuleType, type Module } from '../types';
 import Spinner from './Spinner';
 
 interface AddModuleInstanceModalProps {
     clientId: string;
     onClose: () => void;
     onSuccess: () => void;
+    moduleToEdit?: Module;
 }
 
-const AddModuleInstanceModal: React.FC<AddModuleInstanceModalProps> = ({ clientId, onClose, onSuccess }) => {
+const AddModuleInstanceModal: React.FC<AddModuleInstanceModalProps> = ({ clientId, onClose, onSuccess, moduleToEdit }) => {
     const [moduleTypes, setModuleTypes] = useState<ModuleType[]>([]);
     const [selectedTypeId, setSelectedTypeId] = useState('');
     const [serialNumber, setSerialNumber] = useState('');
@@ -38,6 +39,16 @@ const AddModuleInstanceModal: React.FC<AddModuleInstanceModalProps> = ({ clientI
         fetchTypes();
     }, []);
 
+    useEffect(() => {
+        if (moduleToEdit) {
+            setSelectedTypeId(moduleToEdit.moduleTypeId);
+            setSerialNumber(moduleToEdit.serialNumber);
+            setInstallDate(new Date(moduleToEdit.installationDate).toISOString().split('T')[0]);
+            if (moduleToEdit.latitude) setLatitude(moduleToEdit.latitude.toString());
+            if (moduleToEdit.longitude) setLongitude(moduleToEdit.longitude.toString());
+        }
+    }, [moduleToEdit]);
+
     const handleGetLocation = () => {
         if (!navigator.geolocation) {
             setGeoError('Geolocalización no soportada');
@@ -62,18 +73,28 @@ const AddModuleInstanceModal: React.FC<AddModuleInstanceModalProps> = ({ clientI
         e.preventDefault();
         setSubmitting(true);
         try {
-            await addModuleToClient(
-                clientId, 
-                selectedTypeId, 
-                serialNumber, 
-                installDate, 
-                latitude ? parseFloat(latitude) : undefined, 
-                longitude ? parseFloat(longitude) : undefined
-            );
+            if (moduleToEdit) {
+                await updateModule(moduleToEdit.id, {
+                    moduleTypeId: selectedTypeId,
+                    serialNumber,
+                    installationDate: installDate,
+                    latitude: latitude ? parseFloat(latitude) : undefined, 
+                    longitude: longitude ? parseFloat(longitude) : undefined
+                });
+            } else {
+                await addModuleToClient(
+                    clientId, 
+                    selectedTypeId, 
+                    serialNumber, 
+                    installDate, 
+                    latitude ? parseFloat(latitude) : undefined, 
+                    longitude ? parseFloat(longitude) : undefined
+                );
+            }
             onSuccess();
         } catch (error) {
             console.error(error);
-            alert("Error al asociar módulo");
+            alert("Error al guardar módulo");
         } finally {
             setSubmitting(false);
         }
@@ -82,7 +103,7 @@ const AddModuleInstanceModal: React.FC<AddModuleInstanceModalProps> = ({ clientI
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center" onClick={onClose}>
             <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6" onClick={e => e.stopPropagation()}>
-                <h2 className="text-xl font-bold text-slate-800 mb-4">Asociar Módulo al Cliente</h2>
+                <h2 className="text-xl font-bold text-slate-800 mb-4">{moduleToEdit ? 'Editar Módulo' : 'Asociar Módulo al Cliente'}</h2>
                 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
@@ -157,7 +178,7 @@ const AddModuleInstanceModal: React.FC<AddModuleInstanceModalProps> = ({ clientI
                     <div className="flex justify-end space-x-3 pt-4 border-t border-slate-100 mt-4">
                         <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 rounded-md">Cancelar</button>
                         <button type="submit" disabled={submitting} className="px-4 py-2 text-sm bg-sky-600 text-white rounded-md hover:bg-sky-700 disabled:opacity-50">
-                            {submitting ? <Spinner /> : 'Registrar Módulo'}
+                            {submitting ? <Spinner /> : (moduleToEdit ? 'Guardar Cambios' : 'Registrar Módulo')}
                         </button>
                     </div>
                 </form>

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { getClientDossier } from '../services/supabaseService';
-import { type Client, type Module, type Ticket, type Document, TicketStatus } from '../types';
+import { getClientDossier, getAllModuleTypes } from '../services/supabaseService';
+import { type Client, type Module, type Ticket, type Document, TicketStatus, type ModuleType } from '../types';
 import Spinner from './Spinner';
 import AddModuleInstanceModal from './AddModuleInstanceModal';
 import ModuleInstanceDetails from './ModuleInstanceDetails';
@@ -26,12 +26,17 @@ const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack }) => {
     const [isAddModuleOpen, setIsAddModuleOpen] = useState(false);
     const [selectedModule, setSelectedModule] = useState<Module | null>(null);
     const [isEditClientOpen, setIsEditClientOpen] = useState(false);
+    const [moduleTypes, setModuleTypes] = useState<ModuleType[]>([]);
 
     const fetchData = async () => {
         setLoading(true);
         try {
-            const result = await getClientDossier(client.id);
-            setData(result);
+            const [dossier, types] = await Promise.all([
+                getClientDossier(client.id),
+                getAllModuleTypes()
+            ]);
+            setData(dossier);
+            setModuleTypes(types);
         } catch (error) {
             console.error(error);
         } finally {
@@ -59,6 +64,19 @@ const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack }) => {
     }
 
     const { client: c } = data;
+
+    const getDocumentSourceLabel = (doc: Document) => {
+        if (doc.clientId) return <span className="bg-sky-100 text-sky-800 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase">Cliente</span>;
+        if (doc.moduleId) {
+            const mod = data.modules.find(m => m.id === doc.moduleId);
+            return <span className="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase">Módulo: {mod?.serialNumber}</span>;
+        }
+        if (doc.moduleTypeId) {
+            const type = moduleTypes.find(t => t.id === doc.moduleTypeId);
+            return <span className="bg-violet-100 text-violet-800 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase">Catálogo: {type?.name}</span>;
+        }
+        return null;
+    };
 
     return (
         <div className="flex flex-col h-full bg-slate-50 rounded-lg shadow-sm border border-slate-200">
@@ -232,10 +250,12 @@ const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack }) => {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <h4 className="font-semibold text-slate-800 truncate" title={doc.name}>{doc.name}</h4>
-                                    <p className="text-xs text-slate-500 capitalize">{doc.type}</p>
-                                    {doc.moduleTypeId && <span className="text-[10px] bg-slate-100 text-slate-600 px-1 rounded">Genérico Modelo</span>}
+                                    <div className="flex items-center gap-2 mt-1 mb-1">
+                                        <span className="text-xs text-slate-500 capitalize">{doc.type}</span>
+                                        {getDocumentSourceLabel(doc)}
+                                    </div>
                                     <div className="mt-2">
-                                        <a href={doc.url} className="text-sm text-sky-600 hover:underline font-medium">Ver Documento</a>
+                                        <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-sm text-sky-600 hover:underline font-medium">Ver Documento</a>
                                     </div>
                                 </div>
                             </div>

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { createTicket, getAllClients, getModulesByClientId } from '../services/supabaseService';
 import { type Client, type Module, Priority } from '../types';
 import Spinner from './Spinner';
+import FileDropzone from './FileDropzone';
 
 interface AddTicketModalProps {
     onClose: () => void;
@@ -61,21 +62,14 @@ const AddTicketModal: React.FC<AddTicketModalProps> = ({ onClose, onTicketAdded 
         fetchModules();
     }, [selectedClientId]);
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) {
-            const files = Array.from(e.target.files);
-            
-            files.forEach(file => {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    setPhotoPreviews(prevPreviews => [...prevPreviews, reader.result as string]);
-                };
-                // FIX: The type of `file` was being inferred as `unknown`, causing a type error.
-                // Add a type assertion to Blob to satisfy the `readAsDataURL` method signature.
-                reader.readAsDataURL(file as Blob);
-            });
-            e.target.value = ''; // Allow re-selecting the same file
-        }
+    const handleFilesSelected = (files: File[]) => {
+        files.forEach(file => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setPhotoPreviews(prevPreviews => [...prevPreviews, reader.result as string]);
+            };
+            reader.readAsDataURL(file);
+        });
     };
 
     const handleRemovePhoto = (indexToRemove: number) => {
@@ -165,16 +159,12 @@ const AddTicketModal: React.FC<AddTicketModalProps> = ({ onClose, onTicketAdded 
                         <div>
                             <label className="block text-sm font-medium text-slate-600">Fotos</label>
                             <div className="mt-1">
-                                <label htmlFor="photo-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-sky-600 hover:text-sky-500 focus-within:outline-none flex items-center justify-center w-full h-24 border-2 border-slate-300 border-dashed hover:border-sky-400 transition-colors">
-                                    <div className="text-center">
-                                        <svg className="mx-auto h-8 w-8 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
-                                        </svg>
-                                        <span className="mt-2 block text-sm font-semibold">Añadir foto</span>
-                                    </div>
-                                    <input id="photo-upload" name="photo-upload" type="file" className="sr-only" multiple accept="image/*" onChange={handleFileChange} />
-                                </label>
+                                <FileDropzone 
+                                    onFilesSelected={handleFilesSelected}
+                                    accept={{ 'image/*': [] }}
+                                    maxFiles={5}
+                                    multiple={true}
+                                />
                             </div>
                             {photoPreviews.length > 0 && (
                                 <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">

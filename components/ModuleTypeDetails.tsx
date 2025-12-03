@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { getDocumentsByModuleType, createDocument } from '../services/supabaseService';
 import { type ModuleType, type Document } from '../types';
 import Spinner from './Spinner';
+import FileDropzone from './FileDropzone';
 
 interface ModuleTypeDetailsProps {
     moduleType: ModuleType;
@@ -13,6 +14,7 @@ const ModuleTypeDetails: React.FC<ModuleTypeDetailsProps> = ({ moduleType, onBac
     const [documents, setDocuments] = useState<Document[]>([]);
     const [loading, setLoading] = useState(true);
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+    const [previewImage, setPreviewImage] = useState<string | null>(null);
 
     // Filter states
     const [activeTab, setActiveTab] = useState<'plan' | 'manual' | 'warranty'>('plan');
@@ -46,8 +48,11 @@ const ModuleTypeDetails: React.FC<ModuleTypeDetailsProps> = ({ moduleType, onBac
                 </button>
                 <div className="flex flex-col md:flex-row gap-6">
                     {moduleType.imageUrl && (
-                        <div className="w-full md:w-48 h-32 flex-shrink-0 rounded-lg overflow-hidden border border-slate-200">
-                            <img src={moduleType.imageUrl} alt={moduleType.name} className="w-full h-full object-cover" />
+                        <div 
+                            className="w-full md:w-48 h-32 flex-shrink-0 rounded-lg overflow-hidden border border-slate-200 bg-white cursor-pointer"
+                            onClick={() => setPreviewImage(moduleType.imageUrl!)}
+                        >
+                            <img src={moduleType.imageUrl} alt={moduleType.name} className="w-full h-full object-contain" />
                         </div>
                     )}
                     <div className="flex-1 flex justify-between items-start">
@@ -93,7 +98,14 @@ const ModuleTypeDetails: React.FC<ModuleTypeDetailsProps> = ({ moduleType, onBac
                                         <p className="text-xs text-slate-500 mt-1">{new Date(doc.uploadedAt).toLocaleDateString()}</p>
                                     </div>
                                 </div>
-                                <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-sky-600 hover:text-sky-800 text-sm font-medium">Ver</a>
+                                <a 
+                                    href={doc.url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="text-sky-600 hover:text-sky-800 text-sm font-medium"
+                                >
+                                    Ver
+                                </a>
                             </div>
                         ))}
                     </div>
@@ -115,6 +127,31 @@ const ModuleTypeDetails: React.FC<ModuleTypeDetailsProps> = ({ moduleType, onBac
                     moduleId={moduleType.id}
                     preSelectedType={activeTab}
                 />
+            )}
+
+            {/* Image Zoom Modal */}
+            {previewImage && (
+                <div 
+                    className="fixed inset-0 bg-black bg-opacity-90 z-[60] flex justify-center items-center p-4" 
+                    onClick={() => setPreviewImage(null)}
+                >
+                    <div className="relative max-w-full max-h-full">
+                        <button 
+                            className="absolute -top-12 right-0 text-white hover:text-gray-300 focus:outline-none"
+                            onClick={() => setPreviewImage(null)}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                        <img 
+                            src={previewImage} 
+                            alt="Full size preview" 
+                            className="max-h-[90vh] max-w-[90vw] object-contain rounded shadow-2xl"
+                            onClick={(e) => e.stopPropagation()} 
+                        />
+                    </div>
+                </div>
             )}
         </div>
     );
@@ -138,6 +175,10 @@ const UploadDocModal: React.FC<{ onClose: () => void; onSuccess: () => void; mod
     const [version, setVersion] = useState('');
     const [docType, setDocType] = useState(preSelectedType);
     const [loading, setLoading] = useState(false);
+
+    const handleFilesSelected = (files: File[]) => {
+        if (files.length > 0) setFile(files[0]);
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -187,18 +228,12 @@ const UploadDocModal: React.FC<{ onClose: () => void; onSuccess: () => void; mod
 
                     <div>
                         <label className="block text-sm font-medium text-slate-700">Archivo</label>
-                        <input 
-                            type="file" 
-                            accept=".pdf"
-                            onChange={e => setFile(e.target.files ? e.target.files[0] : null)}
-                            className="mt-1 block w-full text-sm text-slate-500
-                                file:mr-4 file:py-2 file:px-4
-                                file:rounded-full file:border-0
-                                file:text-sm file:font-semibold
-                                file:bg-sky-50 file:text-sky-700
-                                hover:file:bg-sky-100"
-                            required
+                        <FileDropzone 
+                            onFilesSelected={handleFilesSelected}
+                            accept={{ 'application/pdf': [], 'image/*': [] }}
+                            maxFiles={1}
                         />
+                        {file && <p className="text-xs text-emerald-600 mt-1">Archivo seleccionado: {file.name}</p>}
                     </div>
 
                     <div className="flex justify-end space-x-3 pt-4">
