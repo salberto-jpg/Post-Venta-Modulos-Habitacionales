@@ -1,0 +1,8 @@
+{
+  "name": "Post-Venta Módulos Green Box",
+  "description": "Una aplicación web interna para gestionar el servicio post-venta de módulos habitacionales. Permite al personal administrativo supervisar tickets de soporte, solicitudes de mantenimiento, clientes y documentos asociados.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
