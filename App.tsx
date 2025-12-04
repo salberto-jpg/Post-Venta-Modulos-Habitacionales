@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -14,29 +13,22 @@ const App: React.FC = () => {
 
     const renderView = () => {
         switch (currentView) {
-            case 'dashboard':
-                return <Dashboard />;
-            case 'catalog':
-                return <ModuleCatalog />;
-            case 'tickets':
-                return <Tickets />;
-            case 'clients':
-                return <Clients />;
-            case 'documents':
-                return <Documents />;
-            case 'maintenance':
-                return <Maintenance />;
-            default:
-                return <Dashboard />;
+            case 'dashboard': return <Dashboard />;
+            case 'catalog': return <ModuleCatalog />;
+            case 'tickets': return <Tickets />;
+            case 'clients': return <Clients />;
+            case 'documents': return <Documents />;
+            case 'maintenance': return <Maintenance />;
+            default: return <Dashboard />;
         }
     };
 
     return (
-        <div className="flex h-screen bg-slate-200 font-sans">
+        <div className="flex flex-col h-screen bg-slate-100 font-sans">
             <Sidebar currentView={currentView} setCurrentView={setCurrentView} />
-            <main className="flex-1 flex flex-col overflow-hidden">
-                <div className="flex-1 overflow-x-hidden overflow-y-auto bg-slate-200">
-                    <div className="container mx-auto px-6 py-8">
+            <main className="flex-1 overflow-hidden relative">
+                <div className="absolute inset-0 overflow-x-hidden overflow-y-auto">
+                    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-7xl">
                         {renderView()}
                     </div>
                 </div>

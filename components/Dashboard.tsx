@@ -80,7 +80,7 @@ const Dashboard: React.FC = () => {
 
     return (
         <div>
-            <h2 className="text-3xl font-bold text-slate-800 mb-6">Dashboard</h2>
+            <h2 className="text-4xl md:text-7xl font-black text-slate-800 mb-8 tracking-tight">Dashboard</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <StatCard title="Tickets Nuevos" value={stats.newTickets} icon={<TicketIcon />} color="bg-gradient-to-br from-sky-500 to-sky-600" />
                 <StatCard title="Tickets por Agendar" value={stats.pendingMaintenance} icon={<WrenchScrewdriverIcon />} color="bg-gradient-to-br from-amber-500 to-amber-600" />
@@ -88,36 +88,38 @@ const Dashboard: React.FC = () => {
                 <StatCard title="Módulos Instalados" value={stats.totalModules} icon={<HomeIcon />} color="bg-gradient-to-br from-slate-500 to-slate-600" />
             </div>
 
-            <div className="bg-gradient-to-b from-slate-50 to-slate-100 rounded-lg shadow-md p-6 border border-slate-300">
-                <h3 className="text-xl font-semibold text-slate-700 mb-4">Tickets Recientes</h3>
-                <div className="overflow-x-auto">
-                    <table className="min-w-full">
-                        <thead className="bg-transparent">
-                            <tr>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Ticket</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Cliente</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Fecha</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Estado</th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-transparent">
-                            {recentTickets.map(ticket => (
-                                <tr key={ticket.id} className="hover:bg-slate-200/60 cursor-pointer border-t border-slate-200" onClick={() => setSelectedTicket(ticket)}>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-sm font-medium text-slate-900">{ticket.title}</div>
-                                        <div className="text-sm text-slate-500">Módulo: {ticket.moduleSerial}</div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{ticket.clientName}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{new Date(ticket.createdAt).toLocaleDateString()}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(ticket.status)}`}>
-                                            {ticket.status}
-                                        </span>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+            <div className="mb-8">
+                <h3 className="text-2xl font-bold text-slate-700 mb-4">Tickets Recientes</h3>
+                <div className="flex flex-col gap-4">
+                    {recentTickets.map(ticket => (
+                        <div 
+                            key={ticket.id} 
+                            onClick={() => setSelectedTicket(ticket)}
+                            className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md transition-all cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4"
+                        >
+                            <div className="flex items-start gap-4">
+                                <div className={`p-3 rounded-xl bg-slate-50 shrink-0`}>
+                                     <TicketIcon className="h-6 w-6 text-slate-500" />
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-lg text-slate-800">{ticket.title}</h4>
+                                    <div className="text-sm text-slate-500 space-y-1 mt-1">
+                                        <p><span className="font-semibold text-slate-600">Cliente:</span> {ticket.clientName}</p>
+                                        <p><span className="font-semibold text-slate-600">Módulo:</span> {ticket.moduleSerial}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="flex items-center justify-between md:flex-col md:items-end gap-2 md:gap-1 pl-14 md:pl-0">
+                                <span className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full uppercase tracking-wide ${getStatusBadge(ticket.status)}`}>
+                                    {ticket.status}
+                                </span>
+                                <span className="text-xs text-slate-400 font-medium">
+                                    {new Date(ticket.createdAt).toLocaleDateString()}
+                                </span>
+                            </div>
+                        </div>
+                    ))}
                 </div>
             </div>
             {selectedTicket && (
