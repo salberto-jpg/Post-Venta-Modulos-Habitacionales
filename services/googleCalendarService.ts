@@ -177,11 +177,17 @@ export const fetchGoogleEvents = async (): Promise<GoogleCalendarEvent[]> => {
             }
 
             if (response.status === 403) {
-                // Si la API no está habilitada
+                // CASO 1: API no habilitada en general
                 if (errorMessage.toLowerCase().includes("not enabled") || errorMessage.toLowerCase().includes("has not been used")) {
                      throw new Error("API_NO_HABILITADA: Debes habilitar 'Google Calendar API' en tu proyecto de Google Cloud.");
                 }
-                // Si la API ESTÁ habilitada pero el usuario no está en lista (Testing Mode)
+                
+                // CASO 2: API Key restringida (El error dice "blocked")
+                if (errorMessage.toLowerCase().includes("blocked")) {
+                    throw new Error("API_KEY_RESTRINGIDA: Tu API Key tiene restricciones. Ve a Google Cloud > Credenciales > Tu API Key y añade 'Google Calendar API' a la lista de permitidos.");
+                }
+
+                // CASO 3: Usuario de prueba (Testing Mode)
                 if (errorMessage.toLowerCase().includes("caller does not have permission") || errorMessage.toLowerCase().includes("access not configured")) {
                     throw new Error("USUARIO_NO_REGISTRADO: Tu proyecto está en modo 'Testing'. Ve a 'OAuth Consent Screen' > 'Test Users' y añade tu email.");
                 }

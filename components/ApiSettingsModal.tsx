@@ -9,7 +9,6 @@ interface ApiSettingsModalProps {
 const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({ onClose, onSaved }) => {
     const [clientId, setClientId] = useState('');
     const [apiKey, setApiKey] = useState('');
-    const [showHelp, setShowHelp] = useState(true); 
     const [currentOrigin, setCurrentOrigin] = useState('');
 
     useEffect(() => {
@@ -43,32 +42,44 @@ const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({ onClose, onSaved })
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-600">✕</button>
                 </div>
 
-                {/* SOLUCIÓN ERROR 403 - USUARIOS DE PRUEBA */}
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
-                    <h3 className="text-sm font-bold text-amber-800 mb-2 flex items-center">
-                        <span className="mr-2">🛑</span> ¿Sigue el Error 403?
-                    </h3>
-                    <p className="text-xs text-amber-900 mb-2 leading-relaxed">
-                        Si la API está habilitada pero sigues viendo error 403, es porque tu proyecto está en modo <strong>"Testing"</strong>.
-                        Debes agregar tu email (el que usas para loguearte) a la lista de "Test Users".
-                    </p>
-                    <a 
-                        href="https://console.cloud.google.com/apis/credentials/consent" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="block w-full text-center bg-white text-amber-700 border border-amber-300 px-3 py-2 rounded text-xs font-bold hover:bg-amber-100 shadow-sm"
-                    >
-                        1. Ir a Pantalla de Consentimiento OAuth &rarr;
-                    </a>
-                    <div className="mt-2 text-xs text-amber-800">
-                        2. Baja hasta <strong>"Test users"</strong> &rarr; Click <strong>"+ ADD USERS"</strong> &rarr; Escribe tu email.
+                {/* AYUDA PARA ERRORES COMUNES */}
+                <div className="space-y-4 mb-6">
+                    {/* CASO: API KEY BLOQUEADA */}
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <h3 className="text-sm font-bold text-red-800 mb-2 flex items-center">
+                            <span className="mr-2">🔐</span> Error: "Requests... are blocked"
+                        </h3>
+                        <p className="text-xs text-red-900 mb-2 leading-relaxed">
+                            Significa que tu <strong>API Key</strong> tiene restricciones de seguridad y no permite usar el Calendario.
+                        </p>
+                        <ol className="text-xs text-red-800 list-decimal ml-4 space-y-1">
+                            <li>Ve a <a href="https://console.cloud.google.com/apis/credentials" target="_blank" className="underline font-bold">Google Cloud > Credenciales</a>.</li>
+                            <li>Edita tu <strong>API Key</strong> (icono de lápiz).</li>
+                            <li>Baja a <strong>"Restricciones de API"</strong>.</li>
+                            <li>Asegúrate de marcar <strong>Google Calendar API</strong> en la lista.</li>
+                        </ol>
+                    </div>
+
+                    {/* CASO: USUARIO DE PRUEBA */}
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                        <h3 className="text-sm font-bold text-amber-800 mb-2 flex items-center">
+                            <span className="mr-2">👥</span> Error: "Usuario no registrado"
+                        </h3>
+                        <p className="text-xs text-amber-900 mb-1">
+                            Si tu app está en modo "Testing", solo tú puedes entrar.
+                        </p>
+                        <a 
+                            href="https://console.cloud.google.com/apis/credentials/consent" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-xs text-sky-600 font-bold hover:underline"
+                        >
+                            Ir a Pantalla de Consentimiento &rarr; Añadir "Test User".
+                        </a>
                     </div>
                 </div>
 
                 <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-6">
-                    <h3 className="text-sm font-bold text-slate-700 mb-2 flex items-center">
-                        Validación de Origen
-                    </h3>
                     <div className="mb-2">
                         <label className="text-xs font-bold text-slate-500 uppercase">Tu URL (Pegar en Google Cloud - Client ID):</label>
                         <div className="bg-white border border-slate-300 rounded p-2 flex justify-between items-center mt-1">
