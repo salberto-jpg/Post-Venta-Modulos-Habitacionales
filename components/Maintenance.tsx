@@ -278,7 +278,7 @@ const Maintenance: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="flex-grow bg-white rounded-2xl shadow-lg border border-slate-100 p-4">
+                <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-4 h-[75vh] min-h-[600px]">
                     <Calendar 
                         localizer={localizer} 
                         events={combinedEvents} 
