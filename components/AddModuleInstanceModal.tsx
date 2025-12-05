@@ -1,9 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { getAllModuleTypes, addModuleToClient, updateModule } from '../services/supabaseService';
 import { getApiConfig } from '../services/googleCalendarService';
 import { type ModuleType, type Module } from '../types';
 import Spinner from './Spinner';
 import LocationPickerModal from './LocationPickerModal';
+import MessageModal, { MessageType } from './MessageModal';
 
 interface AddModuleInstanceModalProps {
     clientId: string;
@@ -29,6 +31,11 @@ const AddModuleInstanceModal: React.FC<AddModuleInstanceModalProps> = ({ clientI
     
     // Map Picker
     const [showMapPicker, setShowMapPicker] = useState(false);
+
+    // Message Modal State
+    const [modalConfig, setModalConfig] = useState<{isOpen: boolean, title: string, message: string, type: MessageType}>({
+        isOpen: false, title: '', message: '', type: 'info'
+    });
 
     useEffect(() => {
         const fetchTypes = async () => {
@@ -161,7 +168,12 @@ const AddModuleInstanceModal: React.FC<AddModuleInstanceModalProps> = ({ clientI
             onSuccess();
         } catch (error) {
             console.error(error);
-            alert("Error al guardar módulo");
+            setModalConfig({
+                isOpen: true,
+                title: "Error",
+                message: "Hubo un problema al guardar el módulo. Por favor verifique los datos.",
+                type: "error"
+            });
         } finally {
             setSubmitting(false);
         }
@@ -290,6 +302,14 @@ const AddModuleInstanceModal: React.FC<AddModuleInstanceModalProps> = ({ clientI
                     initialLng={longitude ? parseFloat(longitude) : undefined}
                 />
             )}
+
+            <MessageModal
+                isOpen={modalConfig.isOpen}
+                onClose={() => setModalConfig({ ...modalConfig, isOpen: false })}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                type={modalConfig.type}
+            />
         </div>
     );
 };

@@ -1,7 +1,8 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { type Ticket, TicketStatus } from '../types';
 import { getApiConfig } from '../services/googleCalendarService';
+import MessageModal from './MessageModal';
 
 interface RoutePlannerModalProps {
     tickets: Ticket[];
@@ -12,6 +13,9 @@ interface RoutePlannerModalProps {
 const RoutePlannerModal: React.FC<RoutePlannerModalProps> = ({ tickets, onClose, onTicketComplete }) => {
     // Obtener la API Key dinámica guardada por el usuario
     const { apiKey } = getApiConfig();
+    
+    // Estado para el modal de confirmación
+    const [ticketToComplete, setTicketToComplete] = useState<string | null>(null);
 
     // URL para EMBEBER en la página (Vista previa estática/interactiva básica)
     const googleMapsEmbedUrl = useMemo(() => {
@@ -56,6 +60,13 @@ const RoutePlannerModal: React.FC<RoutePlannerModalProps> = ({ tickets, onClose,
     const getWazeLink = (lat: number, lng: number) => `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
     // Función para obtener link Google Maps directo al punto
     const getMapsLink = (lat: number, lng: number) => `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+
+    const handleConfirmComplete = () => {
+        if (ticketToComplete) {
+            onTicketComplete(ticketToComplete);
+            setTicketToComplete(null);
+        }
+    };
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center" onClick={onClose}>
@@ -139,11 +150,7 @@ const RoutePlannerModal: React.FC<RoutePlannerModalProps> = ({ tickets, onClose,
                                                 <div className="mt-2">
                                                     {!isCompleted ? (
                                                         <button 
-                                                            onClick={() => {
-                                                                if(confirm('¿Confirmas que el servicio ha sido realizado? El ticket se cerrará.')) {
-                                                                    onTicketComplete(ticket.id);
-                                                                }
-                                                            }}
+                                                            onClick={() => setTicketToComplete(ticket.id)}
                                                             className="w-full px-3 py-2 text-xs font-bold text-white bg-emerald-600 rounded hover:bg-emerald-700 transition-colors shadow-sm flex items-center justify-center"
                                                         >
                                                             <span className="mr-1">✓</span> Marcar Completado
@@ -196,6 +203,18 @@ const RoutePlannerModal: React.FC<RoutePlannerModalProps> = ({ tickets, onClose,
                     </div>
                 </div>
             </div>
+
+            {/* Modal de Confirmación Estético */}
+            <MessageModal 
+                isOpen={!!ticketToComplete}
+                onClose={() => setTicketToComplete(null)}
+                title="¿Finalizar Servicio?"
+                message="Confirmas que has realizado el servicio. El ticket se marcará como cerrado y completado."
+                type="success"
+                onConfirm={handleConfirmComplete}
+                confirmText="Sí, Completar"
+                cancelText="Cancelar"
+            />
         </div>
     );
 };
