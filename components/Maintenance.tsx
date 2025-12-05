@@ -11,8 +11,6 @@ import ApiSettingsModal from './ApiSettingsModal';
 import { Calendar, momentLocalizer, Messages, Formats } from 'react-big-calendar';
 import moment from 'moment';
 
-// ELIMINADO: import 'moment/locale/es'; <- Esto suele fallar en entornos sin bundler.
-
 // DEFINICIÓN MANUAL DEL IDIOMA ESPAÑOL PARA ASEGURAR CARGA
 moment.updateLocale('es', {
     months: 'Enero_Febrero_Marzo_Abril_Mayo_Junio_Julio_Agosto_Septiembre_Octubre_Noviembre_Diciembre'.split('_'),
@@ -176,20 +174,28 @@ const Maintenance: React.FC = () => {
     const combinedEvents = useMemo(() => {
         const appEvents: CalendarEvent[] = tickets
             .filter(t => (t.status === TicketStatus.Scheduled || t.status === TicketStatus.Closed) && t.scheduledDate)
-            .map(ticket => ({
-                title: `${ticket.title} - ${ticket.clientName}`,
-                // Conversión explícita para asegurar zona horaria local
-                start: new Date(ticket.scheduledDate!),
-                end: new Date(ticket.scheduledDate!),
-                allDay: true,
-                resource: { source: 'app', id: ticket.id },
-            }));
+            .map(ticket => {
+                // CORRECCIÓN CRÍTICA DE ZONA HORARIA
+                // new Date("YYYY-MM-DD") asume UTC, lo que retrasa un día en Latam.
+                // Parseamos los componentes manualmente para crear la fecha en HORA LOCAL.
+                const datePart = ticket.scheduledDate!.split('T')[0]; // "2023-10-05"
+                const [year, month, day] = datePart.split('-').map(Number);
+                const localDate = new Date(year, month - 1, day); // Mes es 0-indexado
+
+                return {
+                    title: `${ticket.title} - ${ticket.clientName}`,
+                    start: localDate,
+                    end: localDate,
+                    allDay: true,
+                    resource: { source: 'app', id: ticket.id },
+                };
+            });
 
         const gEvents: CalendarEvent[] = googleEvents.map(evt => ({
             title: 'Ocupado (Google)', 
-            // Google envía ISO strings, new Date() los convierte automáticamente a la zona horaria local del navegador
-            start: evt.start.dateTime ? new Date(evt.start.dateTime) : new Date(evt.start.date!),
-            end: evt.end.dateTime ? new Date(evt.end.dateTime) : new Date(evt.end.date!),
+            // Google ya envía ISOs con timezone o fechas puras que Date maneja mejor, pero aseguramos
+            start: evt.start.dateTime ? new Date(evt.start.dateTime) : new Date(evt.start.date! + 'T00:00:00'),
+            end: evt.end.dateTime ? new Date(evt.end.dateTime) : new Date(evt.end.date! + 'T00:00:00'),
             allDay: !evt.start.dateTime,
             resource: { source: 'google', id: evt.id, link: evt.htmlLink }
         }));
