@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { getDashboardStats, getRecentTickets } from '../services/supabaseService';
 import { type Ticket, TicketStatus } from '../types';
@@ -74,6 +75,13 @@ const Dashboard: React.FC = () => {
         }
     };
 
+    const handleTicketUpdated = (updatedTicket: Ticket) => {
+        setRecentTickets(prevTickets =>
+            prevTickets.map(t => (t.id === updatedTicket.id ? updatedTicket : t))
+        );
+        setSelectedTicket(updatedTicket);
+    };
+
     if (loading) {
         return <div className="flex justify-center items-center h-full"><Spinner /></div>;
     }
@@ -127,6 +135,7 @@ const Dashboard: React.FC = () => {
                     ticket={selectedTicket}
                     onClose={() => setSelectedTicket(null)}
                     onStatusChange={handleTicketStatusChange}
+                    onTicketUpdated={handleTicketUpdated}
                 />
             )}
         </div>

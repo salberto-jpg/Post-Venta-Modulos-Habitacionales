@@ -14,6 +14,15 @@ export enum Priority {
     High = 'Alta'
 }
 
+export type UserRole = 'admin' | 'user';
+
+export interface UserProfile {
+    id: string;
+    email: string;
+    role: UserRole;
+    name?: string;
+}
+
 export interface Client {
     id: string;
     name: string; // Razón Social
@@ -74,6 +83,7 @@ export interface Ticket {
     moduleSerial?: string;
     latitude?: number;
     longitude?: number;
+    address?: string;
 }
 
 export interface Document {

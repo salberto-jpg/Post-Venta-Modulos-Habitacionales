@@ -1,5 +1,64 @@
+
 import { supabase } from './supabaseClient';
-import { type Client, type Module, type Ticket, type Document, type ModuleType, TicketStatus, Priority } from '../types';
+import { type Client, type Module, type Ticket, type Document, type ModuleType, TicketStatus, Priority, type UserProfile, type UserRole } from '../types';
+
+// --- AUTHENTICATION ---
+
+export const signIn = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    return data;
+};
+
+export const signUp = async (email: string, password: string, fullName: string) => {
+    const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+            data: {
+                full_name: fullName,
+            }
+        }
+    });
+    if (error) throw error;
+    return data;
+};
+
+export const signOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+};
+
+export const getCurrentUserProfile = async (): Promise<UserProfile | null> => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    // Intentar buscar perfil en tabla 'profiles'
+    const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+    // Si no existe tabla profiles o error, devolvemos un perfil básico por defecto
+    // Esto evita que la app explote si no has creado la tabla SQL aún.
+    if (error || !profile) {
+        return {
+            id: user.id,
+            email: user.email || '',
+            role: 'admin', // Por defecto ADMIN para la primera configuración, luego cambiar a 'user'
+            name: user.user_metadata?.full_name || 'Usuario'
+        };
+    }
+
+    return {
+        id: user.id,
+        email: user.email || '',
+        role: profile.role as UserRole,
+        name: profile.full_name
+    };
+};
+
 
 // Helper para subir archivos a Supabase Storage
 export const uploadFileToStorage = async (file: File, bucket: string, path: string): Promise<string> => {
@@ -42,8 +101,14 @@ export const createTicket = async (data: any): Promise<Ticket> => {
         if (client) clientName = client.name;
     }
     if (data.moduleId) {
-        const { data: module } = await supabase.from('modules').select('serialNumber').eq('id', data.moduleId).single();
-        if (module) moduleSerial = module.serialNumber;
+        const { data: module } = await supabase.from('modules').select('serialNumber, latitude, longitude, address').eq('id', data.moduleId).single();
+        if (module) {
+            moduleSerial = module.serialNumber;
+            // Inherit location from module if not present in ticket data
+            if (!data.latitude && module.latitude) data.latitude = module.latitude;
+            if (!data.longitude && module.longitude) data.longitude = module.longitude;
+            if (!data.address && module.address) data.address = module.address;
+        }
     }
     const newTicket = { ...data, status: TicketStatus.New, clientName, moduleSerial, createdAt: new Date().toISOString() };
     const { data: created, error } = await supabase.from('tickets').insert(newTicket).select().single();

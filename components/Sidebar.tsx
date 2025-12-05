@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { type View } from '../types';
+import { type View, type UserProfile } from '../types';
 
 interface SidebarProps {
     currentView: View;
     setCurrentView: (view: View) => void;
+    userProfile: UserProfile | null;
+    onLogout: () => void;
 }
 
 const NavItem: React.FC<{
@@ -27,17 +29,16 @@ const NavItem: React.FC<{
     );
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, userProfile, onLogout }) => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const handleMobileNavClick = (view: View) => { setCurrentView(view); setIsMobileMenuOpen(false); };
 
     return (
         <div className="w-full bg-white border-b border-slate-200 shadow-sm z-30 flex-shrink-0 sticky top-0">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex justify-between h-28"> {/* Increased height from h-20 to h-28 */}
+                <div className="flex justify-between h-28">
                     <div className="flex items-center">
                         <div className="flex-shrink-0 flex items-center mr-8">
-                            {/* Increased logo size even more: h-20 on mobile, h-24 on desktop */}
                             <img src="https://metallo.com.ar/wp-content/uploads/2024/09/LOGO-GREEN-BOX_Mesa-de-trabajo-1.png" alt="Green Box Logo" className="h-20 md:h-24 w-auto object-contain" />
                         </div>
                         <div className="hidden md:flex md:space-x-4 overflow-x-auto no-scrollbar items-center h-full">
@@ -49,6 +50,24 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView }) => {
                             <NavItem viewName="documents" label="Docs" icon={<DocumentTextIcon />} currentView={currentView} onClick={setCurrentView} />
                         </div>
                     </div>
+                    
+                    {/* User Profile / Logout - Desktop */}
+                    <div className="hidden md:flex items-center space-x-4">
+                        <div className="text-right hidden lg:block">
+                            <p className="text-sm font-bold text-slate-800">{userProfile?.name || userProfile?.email}</p>
+                            <span className="text-xs uppercase font-semibold text-sky-600 bg-sky-50 px-2 py-0.5 rounded-full">{userProfile?.role || 'User'}</span>
+                        </div>
+                        <button 
+                            onClick={onLogout} 
+                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                            title="Cerrar Sesión"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            </svg>
+                        </button>
+                    </div>
+
                     <div className="flex items-center md:hidden">
                         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-3 rounded-md text-slate-400 hover:bg-slate-100">
                             {isMobileMenuOpen ? <XIcon className="h-10 w-10" /> : <MenuIcon className="h-10 w-10" />}
@@ -65,6 +84,16 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView }) => {
                         <NavItem mobile viewName="maintenance" label="Agenda" icon={<CalendarIcon />} currentView={currentView} onClick={handleMobileNavClick} />
                         <NavItem mobile viewName="clients" label="Clientes" icon={<UsersIcon />} currentView={currentView} onClick={handleMobileNavClick} />
                         <NavItem mobile viewName="documents" label="Docs" icon={<DocumentTextIcon />} currentView={currentView} onClick={handleMobileNavClick} />
+                        
+                        <div className="border-t border-slate-100 mt-2 pt-2 px-4 pb-2">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="font-bold text-slate-800">{userProfile?.name || 'Usuario'}</p>
+                                    <p className="text-xs text-slate-500">{userProfile?.email}</p>
+                                </div>
+                                <button onClick={onLogout} className="text-red-600 font-bold text-sm">Salir</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
