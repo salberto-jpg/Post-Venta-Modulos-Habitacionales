@@ -1,3 +1,4 @@
+
 import { GOOGLE_CALENDAR_SCOPES } from '../config';
 
 declare global {
@@ -81,7 +82,8 @@ export const loginToGoogle = () => {
         return;
     }
     if (tokenClient) {
-        // 'prompt: ""' intenta login silencioso si ya autorizó antes
+        // 'prompt: ""' intenta login silencioso si ya autorizó antes.
+        // Si cambiamos scopes, Google forzará el prompt automáticamente.
         tokenClient.requestAccessToken({ prompt: '' });
     } else {
         // Si el script no cargó, reintentamos init
@@ -126,7 +128,8 @@ export interface GoogleCalendarEvent {
 export const createGoogleCalendarEvent = async (eventData: { title: string, description: string, date: string, location?: string }) => {
     if (!accessToken) return false;
 
-    const { apiKey } = getApiConfig();
+    // NOTA: No usamos '?key=' aquí. Con el token OAuth es suficiente y evitamos
+    // errores de restricción de IP/Dominio que suelen tener las API Keys.
     
     // Evento de día completo
     const startDate = new Date(eventData.date);
@@ -150,7 +153,7 @@ export const createGoogleCalendarEvent = async (eventData: { title: string, desc
 
     try {
         const response = await fetch(
-            `https://www.googleapis.com/calendar/v3/calendars/primary/events?key=${apiKey}`,
+            `https://www.googleapis.com/calendar/v3/calendars/primary/events`,
             {
                 method: 'POST',
                 headers: {
@@ -161,7 +164,11 @@ export const createGoogleCalendarEvent = async (eventData: { title: string, desc
             }
         );
 
-        if (!response.ok) throw new Error('Error API Google');
+        if (!response.ok) {
+            const errJson = await response.json();
+            console.error("Google Calendar API Error:", errJson);
+            throw new Error('Error API Google: ' + (errJson.error?.message || response.statusText));
+        }
         return true;
     } catch (error) {
         console.error(error);
@@ -171,13 +178,15 @@ export const createGoogleCalendarEvent = async (eventData: { title: string, desc
 
 export const fetchGoogleEvents = async (): Promise<GoogleCalendarEvent[]> => {
     if (!accessToken) throw new Error("No token");
-    const { apiKey } = getApiConfig();
+    
+    // NOTA: Eliminado el uso de ?key= aquí también para evitar 403 si la Key está restringida.
+    // Usamos solo el token de usuario.
     
     const now = new Date();
     const startRange = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
     
     const response = await fetch(
-        `https://www.googleapis.com/calendar/v3/calendars/primary/events?key=${apiKey}&timeMin=${startRange}&showDeleted=false&singleEvents=true&maxResults=250&orderBy=startTime`,
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${startRange}&showDeleted=false&singleEvents=true&maxResults=250&orderBy=startTime`,
         { headers: { 'Authorization': `Bearer ${accessToken}` } }
     );
 
@@ -187,7 +196,9 @@ export const fetchGoogleEvents = async (): Promise<GoogleCalendarEvent[]> => {
             localStorage.removeItem('google_access_token');
             throw new Error("TOKEN_EXPIRED");
         }
-        throw new Error("API Error");
+        const errJson = await response.json();
+        console.error("Google Fetch Error:", errJson);
+        throw new Error("API Error: " + (errJson.error?.message || response.statusText));
     }
 
     const data = await response.json();

@@ -15,5 +15,6 @@
 export const GOOGLE_CLIENT_ID = 'PON_AQUI_TU_CLIENT_ID.apps.googleusercontent.com';
 export const GOOGLE_API_KEY = 'PON_AQUI_TU_API_KEY';
 
-// Permisos: Calendario (lectura) y Perfil (para mostrar foto y nombre)
-export const GOOGLE_CALENDAR_SCOPES = 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/userinfo.profile';
+// Permisos: Calendario (lectura y escritura) y Perfil (para mostrar foto y nombre)
+// SE HA CAMBIADO 'calendar.readonly' POR 'calendar' PARA PERMITIR AGENDAR
+export const GOOGLE_CALENDAR_SCOPES = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.profile';
