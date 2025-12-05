@@ -82,9 +82,9 @@ export const loginToGoogle = () => {
         return;
     }
     if (tokenClient) {
-        // 'prompt: ""' intenta login silencioso si ya autorizó antes.
-        // Si cambiamos scopes, Google forzará el prompt automáticamente.
-        tokenClient.requestAccessToken({ prompt: '' });
+        // CAMBIO IMPORTANTE: 'consent' fuerza a Google a mostrar la pantalla de permisos nuevamente.
+        // Esto es necesario para actualizar de 'readonly' a permisos de escritura.
+        tokenClient.requestAccessToken({ prompt: 'consent' });
     } else {
         // Si el script no cargó, reintentamos init
         initGoogleClient(onTokenCallback || (() => {}));
@@ -128,8 +128,7 @@ export interface GoogleCalendarEvent {
 export const createGoogleCalendarEvent = async (eventData: { title: string, description: string, date: string, location?: string }) => {
     if (!accessToken) return false;
 
-    // NOTA: No usamos '?key=' aquí. Con el token OAuth es suficiente y evitamos
-    // errores de restricción de IP/Dominio que suelen tener las API Keys.
+    // NOTA: No usamos '?key=' aquí. Con el token OAuth es suficiente.
     
     // Evento de día completo
     const startDate = new Date(eventData.date);
@@ -167,6 +166,10 @@ export const createGoogleCalendarEvent = async (eventData: { title: string, desc
         if (!response.ok) {
             const errJson = await response.json();
             console.error("Google Calendar API Error:", errJson);
+            // Si es un error de permisos, devolvemos false para manejarlo en la UI
+            if (response.status === 403) {
+                 console.error("Permisos insuficientes. El usuario debe reconectar la cuenta.");
+            }
             throw new Error('Error API Google: ' + (errJson.error?.message || response.statusText));
         }
         return true;
@@ -178,9 +181,6 @@ export const createGoogleCalendarEvent = async (eventData: { title: string, desc
 
 export const fetchGoogleEvents = async (): Promise<GoogleCalendarEvent[]> => {
     if (!accessToken) throw new Error("No token");
-    
-    // NOTA: Eliminado el uso de ?key= aquí también para evitar 403 si la Key está restringida.
-    // Usamos solo el token de usuario.
     
     const now = new Date();
     const startRange = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();

@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
 import { scheduleTicket } from '../services/supabaseService';
-import { createGoogleCalendarEvent, isTokenValid } from '../services/googleCalendarService';
+import { createGoogleCalendarEvent, isTokenValid, logoutFromGoogle } from '../services/googleCalendarService';
 import { type Ticket } from '../types';
 import Spinner from './Spinner';
 
@@ -42,7 +43,13 @@ const ScheduleTicketModal: React.FC<ScheduleTicketModalProps> = ({ ticket, onClo
                     location: locString
                 });
 
-                if (!success) alert("Nota: El ticket se agendó en la App, pero falló la sincronización con Google Calendar. Verifica tu conexión.");
+                if (!success) {
+                    // Si falla, es probable que sea error de permisos (403)
+                    if (window.confirm("El ticket se agendó en la App, pero falló Google Calendar (Error 403).\n\nEs probable que necesites renovar permisos de escritura.\n\n¿Quieres cerrar sesión de Google ahora para reconectar?")) {
+                        logoutFromGoogle();
+                        window.location.reload();
+                    }
+                }
             }
 
             onTicketScheduled();
