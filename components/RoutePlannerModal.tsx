@@ -1,7 +1,7 @@
 
 import React, { useMemo } from 'react';
 import { type Ticket, TicketStatus } from '../types';
-import { GOOGLE_API_KEY } from '../config';
+import { getApiConfig } from '../services/googleCalendarService';
 
 interface RoutePlannerModalProps {
     tickets: Ticket[];
@@ -10,14 +10,16 @@ interface RoutePlannerModalProps {
 }
 
 const RoutePlannerModal: React.FC<RoutePlannerModalProps> = ({ tickets, onClose, onTicketComplete }) => {
+    // Obtener la API Key dinámica guardada por el usuario
+    const { apiKey } = getApiConfig();
 
     // URL para EMBEBER en la página (Vista previa estática/interactiva básica)
     const googleMapsEmbedUrl = useMemo(() => {
-        if (tickets.length < 1) return ''; 
+        if (tickets.length < 1 || !apiKey) return ''; 
 
         // Si solo hay 1 ticket, mostramos place mode
         if (tickets.length === 1) {
-            return `https://www.google.com/maps/embed/v1/place?key=${GOOGLE_API_KEY}&q=${tickets[0].latitude},${tickets[0].longitude}`;
+            return `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${tickets[0].latitude},${tickets[0].longitude}`;
         }
 
         const origin = `${tickets[0].latitude},${tickets[0].longitude}`;
@@ -28,8 +30,8 @@ const RoutePlannerModal: React.FC<RoutePlannerModalProps> = ({ tickets, onClose,
             .map(t => `${t.latitude},${t.longitude}`)
             .join('|');
 
-        // CORRECCIÓN: 'travelmode' es para URLs universales, Embed API usa 'mode'
-        const baseUrl = `https://www.google.com/maps/embed/v1/directions?key=${GOOGLE_API_KEY}&mode=driving`;
+        // Embed API usa 'mode' (driving, walking, bicycling, flying, transit)
+        const baseUrl = `https://www.google.com/maps/embed/v1/directions?key=${apiKey}&mode=driving`;
         let url = `${baseUrl}&origin=${origin}&destination=${destination}`;
 
         if (waypoints) {
@@ -37,9 +39,9 @@ const RoutePlannerModal: React.FC<RoutePlannerModalProps> = ({ tickets, onClose,
         }
     
         return url;
-    }, [tickets]);
+    }, [tickets, apiKey]);
 
-    // URL general de ruta (Link externo a Google Maps)
+    // URL general de ruta (Link externo a Google Maps - No requiere API Key para abrir la web)
     const googleMapsNavigationUrl = useMemo(() => {
         if (tickets.length === 0) return '';
         const origin = `${tickets[0].latitude},${tickets[0].longitude}`;
@@ -162,21 +164,29 @@ const RoutePlannerModal: React.FC<RoutePlannerModalProps> = ({ tickets, onClose,
 
                     {/* Mapa (Derecha) */}
                     <div className="md:col-span-7 lg:col-span-8 h-full bg-slate-200 rounded-xl overflow-hidden shadow-inner border border-slate-300 relative">
-                        {googleMapsEmbedUrl ? (
-                            <iframe
-                                src={googleMapsEmbedUrl}
-                                width="100%"
-                                height="100%"
-                                style={{ border: 0 }}
-                                allowFullScreen={false}
-                                loading="lazy"
-                                referrerPolicy="no-referrer-when-downgrade"
-                                className="w-full h-full"
-                            ></iframe>
+                        {apiKey ? (
+                            googleMapsEmbedUrl ? (
+                                <iframe
+                                    src={googleMapsEmbedUrl}
+                                    width="100%"
+                                    height="100%"
+                                    style={{ border: 0 }}
+                                    allowFullScreen={false}
+                                    loading="lazy"
+                                    referrerPolicy="no-referrer-when-downgrade"
+                                    className="w-full h-full"
+                                ></iframe>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center h-full text-slate-500">
+                                    <span className="text-4xl mb-2">🗺️</span>
+                                    <p>No se puede previsualizar la ruta (faltan coordenadas).</p>
+                                </div>
+                            )
                         ) : (
-                            <div className="flex flex-col items-center justify-center h-full text-slate-500">
-                                <span className="text-4xl mb-2">🗺️</span>
-                                <p>No se puede previsualizar la ruta.</p>
+                            <div className="flex flex-col items-center justify-center h-full text-slate-500 p-8 text-center">
+                                <span className="text-4xl mb-4">⚙️</span>
+                                <h3 className="font-bold text-lg text-slate-700">API Key No Configurada</h3>
+                                <p className="mb-4 text-sm">Para ver el mapa, ve a la sección <b>Agenda</b>, haz clic en el engranaje ⚙️ e ingresa tu Google Cloud API Key.</p>
                             </div>
                         )}
                         
