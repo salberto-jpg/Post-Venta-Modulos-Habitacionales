@@ -1,6 +1,6 @@
-
 import React, { useState } from 'react';
 import { scheduleTicket } from '../services/supabaseService';
+import { createGoogleCalendarEvent } from '../services/googleCalendarService';
 import { type Ticket } from '../types';
 import Spinner from './Spinner';
 
@@ -15,6 +15,7 @@ const ScheduleTicketModal: React.FC<ScheduleTicketModalProps> = ({ ticket, onClo
     const [scheduleDate, setScheduleDate] = useState(today);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    const [syncWithGoogle, setSyncWithGoogle] = useState(true);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -26,7 +27,28 @@ const ScheduleTicketModal: React.FC<ScheduleTicketModalProps> = ({ ticket, onClo
         setIsLoading(true);
 
         try {
+            // 1. Actualizar en Supabase (Base de datos principal)
             await scheduleTicket(ticket.id, scheduleDate);
+
+            // 2. Crear evento en Google Calendar (si está marcado)
+            if (syncWithGoogle) {
+                const locationStr = ticket.latitude && ticket.longitude 
+                    ? `https://maps.google.com/?q=${ticket.latitude},${ticket.longitude}` 
+                    : ticket.address || '';
+
+                const googleSuccess = await createGoogleCalendarEvent({
+                    title: `${ticket.title} - ${ticket.clientName}`,
+                    description: `Cliente: ${ticket.clientName}\nMódulo: ${ticket.moduleSerial}\nDescripción: ${ticket.description}`,
+                    date: scheduleDate,
+                    location: locationStr
+                });
+
+                if (!googleSuccess) {
+                    console.warn("No se pudo sincronizar con Google Calendar (posiblemente no conectado o error de permisos).");
+                    // No bloqueamos el flujo, pero podríamos avisar con un toast/alerta suave
+                }
+            }
+
             onTicketScheduled();
             onClose();
         } catch (err) {
@@ -67,6 +89,19 @@ const ScheduleTicketModal: React.FC<ScheduleTicketModalProps> = ({ ticket, onClo
                                 className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500" 
                                 required 
                             />
+                        </div>
+
+                        <div className="flex items-center bg-white p-3 rounded-md border border-slate-200">
+                            <input 
+                                id="googleSync" 
+                                type="checkbox" 
+                                checked={syncWithGoogle} 
+                                onChange={e => setSyncWithGoogle(e.target.checked)}
+                                className="h-4 w-4 text-sky-600 focus:ring-sky-500 border-gray-300 rounded"
+                            />
+                            <label htmlFor="googleSync" className="ml-2 block text-sm text-slate-700 font-medium cursor-pointer">
+                                Sincronizar con Google Calendar
+                            </label>
                         </div>
 
                         {error && <p className="text-red-500 text-sm text-center">{error}</p>}

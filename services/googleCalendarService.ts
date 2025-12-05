@@ -7,7 +7,8 @@ declare global {
 }
 
 let tokenClient: any;
-let accessToken: string | null = null;
+// Intentamos recuperar el token del almacenamiento local al inicio
+let accessToken: string | null = localStorage.getItem('google_access_token');
 let onTokenCallback: ((token: string) => void) | null = null;
 
 // Helper para obtener claves dinámicas
@@ -39,6 +40,11 @@ export const initGoogleClient = (onTokenReceived: (token: string) => void) => {
         return;
     }
 
+    // Si ya tenemos un token guardado, notificamos inmediatamente para restaurar la sesión
+    if (accessToken && onTokenCallback) {
+        onTokenCallback(accessToken);
+    }
+
     if (typeof window !== 'undefined' && window.google && window.google.accounts) {
         try {
             // Inicializar el cliente de token
@@ -49,7 +55,10 @@ export const initGoogleClient = (onTokenReceived: (token: string) => void) => {
                 callback: (tokenResponse: any) => {
                     if (tokenResponse && tokenResponse.access_token) {
                         accessToken = tokenResponse.access_token;
-                        if (onTokenCallback) onTokenCallback(accessToken);
+                        // GUARDAR TOKEN EN LOCALSTORAGE PARA PERSISTENCIA
+                        localStorage.setItem('google_access_token', accessToken as string);
+                        
+                        if (onTokenCallback) onTokenCallback(accessToken as string);
                     } else {
                         console.error("Respuesta de token vacía o error:", tokenResponse);
                     }
@@ -78,7 +87,8 @@ export const loginToGoogle = () => {
         return;
     }
 
-    const { clientId } = getApiConfig();
+    // Si ya tenemos token, no hace falta login (aunque initTokenClient maneja re-auth si es necesario)
+    // Pero forzamos para renovar si el usuario hace clic explícitamente.
     
     // Check script loaded
     if (!window.google || !window.google.accounts) {
@@ -86,23 +96,19 @@ export const loginToGoogle = () => {
         return;
     }
 
-    // Inicialización Lazy si no existe
     if (!tokenClient) {
-        console.log("Inicializando cliente antes de login...");
-        try {
-            initGoogleClient(onTokenCallback || ((t) => console.log("Token recibido (JIT):", t)));
-        } catch (e) {
-            alert("Error crítico al inicializar cliente Google: " + e);
-            return;
-        }
+        // Reintentar init si falló antes
+         const { clientId } = getApiConfig();
+         if(clientId) {
+            initGoogleClient(onTokenCallback || ((t) => {}));
+         }
     }
 
     // Ejecución inmediata
     if (tokenClient) {
-        // requestAccessToken debe ser resultado directo de la acción del usuario (click)
-        tokenClient.requestAccessToken({ prompt: 'consent' });
+        tokenClient.requestAccessToken({ prompt: '' }); // '' para intentar login silencioso si es posible, o 'consent' para forzar
     } else {
-        alert("No se pudo iniciar el cliente de autenticación. Verifica que el 'Client ID' sea correcto en la configuración.");
+        alert("No se pudo iniciar el cliente de autenticación. Verifica la configuración.");
     }
 };
 
@@ -113,6 +119,7 @@ export const logoutFromGoogle = () => {
         });
     }
     accessToken = null;
+    localStorage.removeItem('google_access_token'); // Limpiar almacenamiento
 };
 
 export const getGoogleUserProfile = async () => {
@@ -123,7 +130,8 @@ export const getGoogleUserProfile = async () => {
             headers: { 'Authorization': `Bearer ${accessToken}` }
         });
         if (response.status === 401) {
-             accessToken = null; // Token inválido
+             accessToken = null;
+             localStorage.removeItem('google_access_token'); // Token expirado
              return null;
         }
         if (!response.ok) throw new Error('Failed to fetch user profile');
@@ -143,6 +151,63 @@ export interface GoogleCalendarEvent {
     end: { dateTime?: string; date?: string };
     htmlLink: string;
 }
+
+// NUEVA FUNCIÓN: Crear evento en Google Calendar
+export const createGoogleCalendarEvent = async (eventData: { title: string, description: string, date: string, location?: string }) => {
+    if (!accessToken) {
+        console.warn("No hay sesión de Google activa para crear el evento.");
+        return false;
+    }
+
+    const { apiKey } = getApiConfig();
+    
+    // Calcular fecha fin (Google requiere fecha exclusiva para eventos de todo el día, es decir, día siguiente)
+    const startDate = new Date(eventData.date);
+    const endDate = new Date(eventData.date);
+    endDate.setDate(endDate.getDate() + 1);
+    const endDateString = endDate.toISOString().split('T')[0];
+
+    const body = {
+        summary: `Visita Técnica: ${eventData.title}`,
+        description: eventData.description,
+        location: eventData.location || '',
+        start: {
+            date: eventData.date // YYYY-MM-DD
+        },
+        end: {
+            date: endDateString // YYYY-MM-DD (Día siguiente)
+        }
+    };
+
+    try {
+        const response = await fetch(
+            `https://www.googleapis.com/calendar/v3/calendars/primary/events?key=${apiKey}`,
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(body)
+            }
+        );
+
+        if (!response.ok) {
+            const error = await response.json();
+            console.error("Error creando evento en Google:", error);
+            if (response.status === 401) {
+                accessToken = null;
+                localStorage.removeItem('google_access_token');
+            }
+            throw new Error(error.error?.message || 'Error al crear evento en Google Calendar');
+        }
+
+        return true;
+    } catch (error) {
+        console.error(error);
+        return false;
+    }
+};
 
 export const fetchGoogleEvents = async (): Promise<GoogleCalendarEvent[]> => {
     if (!accessToken) throw new Error("No access token");
@@ -169,29 +234,17 @@ export const fetchGoogleEvents = async (): Promise<GoogleCalendarEvent[]> => {
         if (!response.ok) {
             const errorData = await response.json();
             const errorMessage = errorData.error?.message || 'Error desconocido';
-            console.error("Google API Error Body:", errorData);
-
+            
             if (response.status === 401) {
                 accessToken = null;
+                localStorage.removeItem('google_access_token');
                 throw new Error("TOKEN_EXPIRED");
             }
 
             if (response.status === 403) {
-                // CASO 1: API no habilitada en general
-                if (errorMessage.toLowerCase().includes("not enabled") || errorMessage.toLowerCase().includes("has not been used")) {
-                     throw new Error("API_NO_HABILITADA: Debes habilitar 'Google Calendar API' en tu proyecto de Google Cloud.");
+                if (errorMessage.toLowerCase().includes("not enabled")) {
+                     throw new Error("API_NO_HABILITADA");
                 }
-                
-                // CASO 2: API Key restringida (El error dice "blocked")
-                if (errorMessage.toLowerCase().includes("blocked")) {
-                    throw new Error("API_KEY_RESTRINGIDA: Tu API Key tiene restricciones. Ve a Google Cloud > Credenciales > Tu API Key y añade 'Google Calendar API' a la lista de permitidos.");
-                }
-
-                // CASO 3: Usuario de prueba (Testing Mode)
-                if (errorMessage.toLowerCase().includes("caller does not have permission") || errorMessage.toLowerCase().includes("access not configured")) {
-                    throw new Error("USUARIO_NO_REGISTRADO: Tu proyecto está en modo 'Testing'. Ve a 'OAuth Consent Screen' > 'Test Users' y añade tu email.");
-                }
-                
                 throw new Error(`PERMISO_DENEGADO (403): ${errorMessage}`);
             }
 

@@ -185,10 +185,25 @@ export const getModuleDossier = async (moduleId: string) => {
     return { module: moduleData as Module, tickets: (tickets || []) as Ticket[], documents: filteredDocs as Document[] };
 };
 
-export const addModuleToClient = async (clientId: string, moduleTypeId: string, serialNumber: string, installationDate: string, lat?: number, lng?: number): Promise<Module> => {
+export const addModuleToClient = async (
+    clientId: string, 
+    moduleTypeId: string, 
+    serialNumber: string, 
+    installationDate: string, 
+    lat?: number, 
+    lng?: number,
+    address?: string // Added address parameter
+): Promise<Module> => {
     const { data: type } = await supabase.from('module_types').select('name').eq('id', moduleTypeId).single();
     const newModule = {
-        clientId, moduleTypeId, modelName: type?.name || 'Desconocido', serialNumber, installationDate, latitude: lat, longitude: lng,
+        clientId, 
+        moduleTypeId, 
+        modelName: type?.name || 'Desconocido', 
+        serialNumber, 
+        installationDate, 
+        latitude: lat, 
+        longitude: lng,
+        address, // Save address
         warrantyExpiration: new Date(new Date(installationDate).setFullYear(new Date(installationDate).getFullYear() + 1)).toISOString().split('T')[0],
         createdAt: new Date().toISOString()
     };
