@@ -8,15 +8,46 @@ import ScheduleTicketModal from './ScheduleTicketModal';
 import RoutePlannerModal from './RoutePlannerModal';
 import TicketDetailsModal from './TicketDetailsModal';
 import ApiSettingsModal from './ApiSettingsModal';
-import { Calendar, momentLocalizer, Messages } from 'react-big-calendar';
+import { Calendar, momentLocalizer, Messages, Formats } from 'react-big-calendar';
 import moment from 'moment';
 import 'moment/locale/es';
 
-moment.locale('es');
+// Configuración profunda de Moment.js para Español
+moment.locale('es', {
+    week: {
+        dow: 1, // Lunes es el primer día de la semana
+        doy: 4  // La semana que contiene el 4 de enero es la primera semana del año
+    }
+});
 const localizer = momentLocalizer(moment);
 
-const messages: Messages = { allDay: 'Todo el día', previous: 'Anterior', next: 'Siguiente', today: 'Hoy', month: 'Mes', week: 'Semana', day: 'Día', agenda: 'Agenda', date: 'Fecha', time: 'Hora', event: 'Evento', noEventsInRange: 'Sin eventos', showMore: total => `+${total} más` };
-const customCalendarStyles = `.rbc-calendar { font-family: inherit; } .rbc-toolbar button { border: 1px solid #e2e8f0; background: white; } .rbc-toolbar button.rbc-active { background-color: #0284c7; color: white; } .rbc-event { background: transparent; padding: 2px; }`;
+const messages: Messages = {
+    allDay: 'Todo el día',
+    previous: 'Anterior',
+    next: 'Siguiente',
+    today: 'Hoy',
+    month: 'Mes',
+    week: 'Semana',
+    day: 'Día',
+    agenda: 'Agenda',
+    date: 'Fecha',
+    time: 'Hora',
+    event: 'Evento',
+    noEventsInRange: 'No hay visitas programadas en este rango',
+    showMore: total => `+ Ver ${total} más`
+};
+
+// Formatos para forzar 24hs y visualización clara
+const calendarFormats: Formats = {
+    timeGutterFormat: (date: Date, culture?: string, localizer?: any) => 
+        localizer.format(date, 'HH:mm', culture), // Eje Y: 13:00, 14:00
+    eventTimeRangeFormat: ({ start, end }: any, culture?: string, localizer?: any) =>
+        `${localizer.format(start, 'HH:mm', culture)} - ${localizer.format(end, 'HH:mm', culture)}`, // Evento: 13:00 - 14:00
+    agendaTimeRangeFormat: ({ start, end }: any, culture?: string, localizer?: any) =>
+        `${localizer.format(start, 'HH:mm', culture)} - ${localizer.format(end, 'HH:mm', culture)}`,
+};
+
+const customCalendarStyles = `.rbc-calendar { font-family: inherit; } .rbc-toolbar button { border: 1px solid #e2e8f0; background: white; } .rbc-toolbar button.rbc-active { background-color: #0284c7; color: white; } .rbc-event { background: transparent; padding: 2px; } .rbc-time-view .rbc-header { border-bottom: 1px solid #e2e8f0; } .rbc-today { background-color: #f0f9ff; }`;
 
 interface CalendarEvent { title: string; start: Date; end: Date; allDay: boolean; resource?: { source: 'app' | 'google', id: string, link?: string }; }
 interface GoogleUser { name: string; picture: string; email: string; }
@@ -33,7 +64,7 @@ const Maintenance: React.FC = () => {
     // Route Date Picker
     const [routeDate, setRouteDate] = useState(new Date().toISOString().split('T')[0]);
     
-    // Google State - Inicializamos en true si ya tenemos token válido
+    // Google State
     const [isGoogleConnected, setIsGoogleConnected] = useState(isTokenValid());
     const [googleEvents, setGoogleEvents] = useState<GoogleCalendarEvent[]>([]);
     const [googleUser, setGoogleUser] = useState<GoogleUser | null>(null);
@@ -48,16 +79,13 @@ const Maintenance: React.FC = () => {
     const loadGoogleData = async () => {
         setGoogleError('');
         try {
-            // Intentamos obtener perfil. Si falla por token expirado, getGoogleUserProfile devuelve null
             const userProfile = await getGoogleUserProfile();
-            
             if (userProfile) {
                 setGoogleUser(userProfile);
                 setIsGoogleConnected(true);
                 const events = await fetchGoogleEvents();
                 setGoogleEvents(events);
             } else {
-                // Token expirado o inválido
                 setIsGoogleConnected(false);
             }
         } catch (error: any) {
@@ -73,17 +101,11 @@ const Maintenance: React.FC = () => {
 
     useEffect(() => {
         fetchTickets();
-        
         if (hasValidConfig()) {
-            // Inicializar cliente. Si ya hay token válido, loadGoogleData se llamará tras el init si así lo deseamos, 
-            // pero como ya comprobamos isTokenValid() en el estado inicial, llamamos a loadGoogleData directamente.
             initGoogleClient((token) => {
-                // Este callback se ejecuta cuando se recibe un NUEVO token (login popup)
                 setIsGoogleConnected(true);
                 loadGoogleData();
             });
-
-            // Si ya estamos "conectados" (token en storage), cargamos los datos
             if (isTokenValid()) {
                 loadGoogleData();
             }
@@ -108,17 +130,12 @@ const Maintenance: React.FC = () => {
 
     const handleOpenRoutePlanner = () => {
         const selectedMoment = moment(routeDate).startOf('day');
-        
-        // Filtramos tickets agendados para la fecha seleccionada que tengan coordenadas
         const ticketsForDate = tickets.filter(ticket => 
             ticket.scheduledDate && 
             moment(ticket.scheduledDate).isSame(selectedMoment, 'day') && 
             ticket.latitude && 
             ticket.longitude
         );
-        
-        // Ordenar optimísticamente (primero los pendientes, luego cerrados, o por hora si tuviéramos)
-        // Por ahora ordenamos por ID/Creación para estabilidad
         ticketsForDate.sort((a, b) => a.id.localeCompare(b.id));
 
         if (ticketsForDate.length > 0) {
@@ -130,11 +147,8 @@ const Maintenance: React.FC = () => {
     };
     
     const handleTicketCompletedFromRoute = async (ticketId: string) => {
-         // Actualizar estado localmente para reflejar cambio inmediato en UI
          setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: TicketStatus.Closed } : t));
-         // Actualizar la lista interna del planificador de rutas para que se pinte verde
          setRouteTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: TicketStatus.Closed } : t));
-         
          await fetchTickets();
     };
 
@@ -191,7 +205,6 @@ const Maintenance: React.FC = () => {
                         <span className="bg-amber-600 text-white rounded-full text-xs px-2 py-0.5 mr-2">{pendingTickets.length}</span> Pendientes
                     </button>
                     
-                    {/* Route Planner Control */}
                     <div className="flex items-center bg-white border border-slate-300 rounded-lg p-1 shadow-sm">
                         <input 
                             type="date" 
@@ -232,7 +245,22 @@ const Maintenance: React.FC = () => {
                 </div>
 
                 <div className="flex-grow bg-white rounded-2xl shadow-lg border border-slate-100 p-4">
-                    <Calendar localizer={localizer} events={combinedEvents} startAccessor="start" endAccessor="end" messages={messages} eventPropGetter={eventPropGetter} onSelectEvent={handleSelectEvent} views={['month', 'week', 'day']} defaultView='month' className="h-full" />
+                    <Calendar 
+                        localizer={localizer} 
+                        events={combinedEvents} 
+                        startAccessor="start" 
+                        endAccessor="end" 
+                        messages={messages}
+                        culture="es" // Forzar cultura española en el componente
+                        formats={calendarFormats} // Formato 24hs
+                        min={new Date(0, 0, 0, 8, 0, 0)} // Inicio visual: 08:00 AM
+                        max={new Date(0, 0, 0, 20, 0, 0)} // Fin visual: 08:00 PM
+                        eventPropGetter={eventPropGetter} 
+                        onSelectEvent={handleSelectEvent} 
+                        views={['month', 'week', 'day']} 
+                        defaultView='month' 
+                        className="h-full" 
+                    />
                 </div>
             </div>
 
@@ -259,8 +287,7 @@ const Maintenance: React.FC = () => {
             {isSettingsOpen && <ApiSettingsModal onClose={() => setIsSettingsOpen(false)} onSaved={() => { if(hasValidConfig()) { setIsGoogleConnected(true); initGoogleClient(loadGoogleData); } }} />}
             {schedulingTicket && <ScheduleTicketModal ticket={schedulingTicket} onClose={() => setSchedulingTicket(null)} onTicketScheduled={handleTicketScheduled} />}
             {isRouteModalOpen && <RoutePlannerModal tickets={routeTickets} onClose={() => setIsRouteModalOpen(false)} onTicketComplete={async (id) => { 
-                // Aquí podríamos llamar a la API para cerrar ticket
-                const { updateTicketStatus } = await import('../services/supabaseService'); // Dynamic import to avoid cycles or just use generic
+                const { updateTicketStatus } = await import('../services/supabaseService');
                 await updateTicketStatus(id, TicketStatus.Closed);
                 handleTicketCompletedFromRoute(id);
             }} />}
