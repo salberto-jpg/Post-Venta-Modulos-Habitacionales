@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { createTicket, getAllClients, getModulesByClientId } from '../services/supabaseService';
 import { type Client, type Module, Priority } from '../types';
@@ -19,10 +20,27 @@ const AddTicketModal: React.FC<AddTicketModalProps> = ({ onClose, onTicketAdded 
     
     const [clients, setClients] = useState<Client[]>([]);
     const [modules, setModules] = useState<Module[]>([]);
+    const [selectedModule, setSelectedModule] = useState<Module | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => { getAllClients().then(setClients); }, []);
-    useEffect(() => { if (selectedClientId) getModulesByClientId(selectedClientId).then(setModules); }, [selectedClientId]);
+    
+    useEffect(() => { 
+        if (selectedClientId) {
+            getModulesByClientId(selectedClientId).then(setModules); 
+        } else {
+            setModules([]);
+        }
+        setSelectedModuleId('');
+        setSelectedModule(null);
+    }, [selectedClientId]);
+
+    const handleModuleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const id = e.target.value;
+        setSelectedModuleId(id);
+        const mod = modules.find(m => m.id === id) || null;
+        setSelectedModule(mod);
+    };
 
     const handleFilesSelected = (files: File[]) => {
         // Add files to state
@@ -51,8 +69,8 @@ const AddTicketModal: React.FC<AddTicketModalProps> = ({ onClose, onTicketAdded 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault(); setIsLoading(true);
         try { 
-            // Note: In a real app we might upload files to storage here instead of sending base64
-            // But preserving existing logic for now, just enhancing UX
+            // Note: createTicket service automatically inherits latitude/longitude/address from the Module
+            // if they exist in the module record.
             await createTicket({ title, description, clientId: selectedClientId, moduleId: selectedModuleId, priority, photos: photoPreviews }); 
             onTicketAdded(); 
             onClose(); 
@@ -66,8 +84,26 @@ const AddTicketModal: React.FC<AddTicketModalProps> = ({ onClose, onTicketAdded 
                 <form onSubmit={handleSubmit} className="space-y-4 flex-1 overflow-y-auto pr-2">
                     <div className="grid grid-cols-2 gap-4">
                         <select value={selectedClientId} onChange={e => setSelectedClientId(e.target.value)} className="border p-2 rounded w-full" required><option value="">Cliente</option>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
-                        <select value={selectedModuleId} onChange={e => setSelectedModuleId(e.target.value)} className="border p-2 rounded w-full" required disabled={!selectedClientId}><option value="">Módulo</option>{modules.map(m => <option key={m.id} value={m.id}>{m.modelName} - {m.serialNumber}</option>)}</select>
+                        <select value={selectedModuleId} onChange={handleModuleChange} className="border p-2 rounded w-full" required disabled={!selectedClientId}><option value="">Módulo</option>{modules.map(m => <option key={m.id} value={m.id}>{m.modelName} - {m.serialNumber}</option>)}</select>
                     </div>
+
+                    {/* Feedback visual de ubicación */}
+                    {selectedModule && (
+                        <div className={`text-xs px-3 py-2 rounded border flex items-center ${selectedModule.latitude ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
+                            {selectedModule.latitude ? (
+                                <>
+                                    <span className="mr-2">📍</span> 
+                                    <span><strong>Ubicación vinculada:</strong> El ticket heredará las coordenadas GPS del módulo ({selectedModule.address || 'Sin dirección'}).</span>
+                                </>
+                            ) : (
+                                <>
+                                    <span className="mr-2">⚠️</span>
+                                    <span><strong>Sin ubicación:</strong> El módulo seleccionado no tiene GPS configurado.</span>
+                                </>
+                            )}
+                        </div>
+                    )}
+
                     <input type="text" placeholder="Título" value={title} onChange={e => setTitle(e.target.value)} className="border p-2 rounded w-full" required />
                     <select value={priority} onChange={e => setPriority(e.target.value as Priority)} className="border p-2 rounded w-full"><option value="Baja">Baja</option><option value="Media">Media</option><option value="Alta">Alta</option></select>
                     <textarea placeholder="Descripción" value={description} onChange={e => setDescription(e.target.value)} rows={4} className="border p-2 rounded w-full" required />

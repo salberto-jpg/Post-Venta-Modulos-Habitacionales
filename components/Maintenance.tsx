@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getAllTickets } from '../services/supabaseService';
 import { initGoogleClient, loginToGoogle, fetchGoogleEvents, logoutFromGoogle, getGoogleUserProfile, hasValidConfig, isTokenValid, type GoogleCalendarEvent } from '../services/googleCalendarService';
@@ -28,6 +29,9 @@ const Maintenance: React.FC = () => {
     const [isRouteModalOpen, setIsRouteModalOpen] = useState(false);
     const [routeTickets, setRouteTickets] = useState<Ticket[]>([]);
     const [isPendingListOpen, setIsPendingListOpen] = useState(false);
+    
+    // Route Date Picker
+    const [routeDate, setRouteDate] = useState(new Date().toISOString().split('T')[0]);
     
     // Google State - Inicializamos en true si ya tenemos token válido
     const [isGoogleConnected, setIsGoogleConnected] = useState(isTokenValid());
@@ -103,31 +107,34 @@ const Maintenance: React.FC = () => {
     const handleTicketScheduled = async () => { await fetchTickets(); if(isGoogleConnected) loadGoogleData(); };
 
     const handleOpenRoutePlanner = () => {
-        const today = moment().startOf('day');
-        // Filtramos tickets agendados para HOY (o pasados sin cerrar) que tengan coordenadas
-        const ticketsForToday = tickets.filter(ticket => 
+        const selectedMoment = moment(routeDate).startOf('day');
+        
+        // Filtramos tickets agendados para la fecha seleccionada que tengan coordenadas
+        const ticketsForDate = tickets.filter(ticket => 
             ticket.scheduledDate && 
-            moment(ticket.scheduledDate).isSame(today, 'day') && 
+            moment(ticket.scheduledDate).isSame(selectedMoment, 'day') && 
             ticket.latitude && 
-            ticket.longitude &&
-            ticket.status !== TicketStatus.Closed // Opcional: mostrar solo abiertos
+            ticket.longitude
         );
         
-        // Ordenar optimísticamente o por hora si tuviéramos hora (aquí asumimos orden de creación o ID por ahora)
-        if (ticketsForToday.length > 0) {
-            setRouteTickets(ticketsForToday);
+        // Ordenar optimísticamente (primero los pendientes, luego cerrados, o por hora si tuviéramos)
+        // Por ahora ordenamos por ID/Creación para estabilidad
+        ticketsForDate.sort((a, b) => a.id.localeCompare(b.id));
+
+        if (ticketsForDate.length > 0) {
+            setRouteTickets(ticketsForDate);
             setIsRouteModalOpen(true);
         } else {
-            alert("No hay visitas agendadas para hoy con ubicación GPS registrada.");
+            alert(`No hay servicios con ubicación GPS programados para el ${selectedMoment.format('DD/MM/YYYY')}.`);
         }
     };
     
     const handleTicketCompletedFromRoute = async (ticketId: string) => {
          // Actualizar estado localmente para reflejar cambio inmediato en UI
          setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: TicketStatus.Closed } : t));
-         // La lógica real de actualización en DB ocurre dentro del modal o detail, 
-         // pero RoutePlanner llama a onTicketComplete que podría gatillar un refresh.
-         // Aquí solo actualizamos vista. El modal RoutePlanner se encarga de llamar a la API.
+         // Actualizar la lista interna del planificador de rutas para que se pinte verde
+         setRouteTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: TicketStatus.Closed } : t));
+         
          await fetchTickets();
     };
 
@@ -176,20 +183,31 @@ const Maintenance: React.FC = () => {
     return (
         <div className="h-full flex flex-col">
             <style>{customCalendarStyles}</style>
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-6 gap-4">
                  <div><h2 className="text-4xl font-black text-slate-800">Agenda</h2></div>
-                 <div className="flex gap-3">
+                 
+                 <div className="flex flex-wrap gap-3 items-center">
                     <button onClick={() => setIsPendingListOpen(true)} className="bg-amber-50 text-amber-700 border border-amber-200 px-4 py-2 rounded-lg font-bold flex items-center shadow-sm hover:bg-amber-100 transition-colors">
                         <span className="bg-amber-600 text-white rounded-full text-xs px-2 py-0.5 mr-2">{pendingTickets.length}</span> Pendientes
                     </button>
-                    <button onClick={handleOpenRoutePlanner} className="bg-sky-600 text-white border border-sky-700 px-4 py-2 rounded-lg font-bold hover:bg-sky-700 shadow-md flex items-center transition-colors">
-                        <span className="mr-2">🗺️</span> Ruta de Hoy
-                    </button>
+                    
+                    {/* Route Planner Control */}
+                    <div className="flex items-center bg-white border border-slate-300 rounded-lg p-1 shadow-sm">
+                        <input 
+                            type="date" 
+                            value={routeDate}
+                            onChange={(e) => setRouteDate(e.target.value)}
+                            className="text-sm font-medium text-slate-700 border-none focus:ring-0 rounded-l-md px-3 py-1 bg-transparent"
+                        />
+                        <button onClick={handleOpenRoutePlanner} className="bg-sky-600 text-white px-4 py-1.5 rounded-md font-bold hover:bg-sky-700 flex items-center transition-colors ml-1">
+                            <span className="mr-2">🗺️</span> Ruta del Día
+                        </button>
+                    </div>
                  </div>
             </div>
 
             <div className="flex-grow flex flex-col">
-                <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm mb-4 flex justify-between items-center">
+                <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm mb-4 flex flex-col md:flex-row justify-between items-center gap-4">
                     <div className="flex items-center gap-4 text-sm font-medium text-slate-600">
                         <div className="flex items-center"><span className="w-3 h-3 rounded-full bg-sky-500 mr-2"></span>Visitas</div>
                         <div className="flex items-center"><span className="w-3 h-3 rounded-full bg-emerald-500 mr-2"></span>Realizadas</div>
