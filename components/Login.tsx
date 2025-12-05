@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { signIn, signUp } from '../services/supabaseService';
 import Spinner from './Spinner';
@@ -51,16 +52,12 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     return (
         <div className="min-h-screen bg-slate-200 flex flex-col justify-center items-center p-4">
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-                <div className="bg-slate-800 p-8 text-center">
+                <div className="bg-slate-800 p-10 flex justify-center items-center">
                     <img 
                         src="https://metallo.com.ar/wp-content/uploads/2024/09/LOGO-GREEN-BOX_Mesa-de-trabajo-1.png" 
                         alt="Green Box Logo" 
-                        className="h-20 mx-auto mb-4 bg-white rounded-lg p-2" 
+                        className="w-full max-w-[280px] h-auto object-contain bg-white rounded-xl p-4 shadow-lg" 
                     />
-                    <h2 className="text-2xl font-bold text-white">Post-Venta Pro</h2>
-                    <p className="text-slate-400 text-sm mt-1">
-                        {isSignUp ? 'Crear Nueva Cuenta' : 'Acceso Exclusivo Personal Autorizado'}
-                    </p>
                 </div>
                 
                 <div className="p-8">

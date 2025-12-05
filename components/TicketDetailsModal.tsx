@@ -1,7 +1,8 @@
+
 import React, { useState } from 'react';
 import { type Ticket, TicketStatus, Priority } from '../types';
 import { updateTicketStatus, updateTicket, deleteTicket, uploadFileToStorage } from '../services/supabaseService';
-import { getApiConfig } from '../services/googleCalendarService';
+import { getApiConfig, findAndMarkEventAsDone, isTokenValid } from '../services/googleCalendarService';
 import Spinner from './Spinner';
 import FileDropzone from './FileDropzone';
 import ConfirmModal from './ConfirmModal';
@@ -43,6 +44,12 @@ const TicketDetailsModal: React.FC<TicketDetailsModalProps> = ({ ticket: initial
             await updateTicketStatus(ticket.id, newStatus);
             const updatedTicket = { ...ticket, status: newStatus };
             setTicket(updatedTicket);
+            
+            // Actualizar Google Calendar si se cierra el ticket
+            if (newStatus === TicketStatus.Closed && isTokenValid() && ticket.scheduledDate) {
+                await findAndMarkEventAsDone(ticket);
+            }
+
             if(onTicketUpdated) onTicketUpdated(updatedTicket);
             if(onStatusChange) onStatusChange(ticket.id, newStatus);
         } catch (error) {

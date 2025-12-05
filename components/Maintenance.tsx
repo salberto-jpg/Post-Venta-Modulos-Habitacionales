@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getAllTickets } from '../services/supabaseService';
-import { initGoogleClient, loginToGoogle, fetchGoogleEvents, logoutFromGoogle, getGoogleUserProfile, hasValidConfig, isTokenValid, type GoogleCalendarEvent } from '../services/googleCalendarService';
+import { initGoogleClient, loginToGoogle, fetchGoogleEvents, logoutFromGoogle, getGoogleUserProfile, hasValidConfig, isTokenValid, findAndMarkEventAsDone, type GoogleCalendarEvent } from '../services/googleCalendarService';
 import { type Ticket, TicketStatus } from '../types';
 import Spinner from './Spinner';
 import ScheduleTicketModal from './ScheduleTicketModal';
@@ -166,9 +166,21 @@ const Maintenance: React.FC = () => {
     };
     
     const handleTicketCompletedFromRoute = async (ticketId: string) => {
-         setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: TicketStatus.Closed } : t));
-         setRouteTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: TicketStatus.Closed } : t));
-         await fetchTickets();
+        const ticket = tickets.find(t => t.id === ticketId);
+        if (ticket) {
+            // Actualizar Supabase (local)
+            const updatedTicket = { ...ticket, status: TicketStatus.Closed };
+            setTickets(prev => prev.map(t => t.id === ticketId ? updatedTicket : t));
+            setRouteTickets(prev => prev.map(t => t.id === ticketId ? updatedTicket : t));
+            
+            // Actualizar Google Calendar (remoto)
+            if (isGoogleConnected && ticket.scheduledDate) {
+                await findAndMarkEventAsDone(ticket);
+                // Recargar eventos para ver el cambio de color/título
+                loadGoogleData();
+            }
+            await fetchTickets();
+        }
     };
 
     const combinedEvents = useMemo(() => {
@@ -204,13 +216,24 @@ const Maintenance: React.FC = () => {
     }, [tickets, googleEvents]);
 
     const eventPropGetter = useCallback((event: CalendarEvent) => {
-        let style = { border: 'none', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '600', padding: '2px 8px', borderLeft: '4px solid', marginBottom: '2px' };
+        let style: any = { border: 'none', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '600', padding: '2px 8px', borderLeft: '4px solid', marginBottom: '2px' };
         if (event.resource?.source === 'google') {
             return { style: { ...style, backgroundColor: '#f1f5f9', color: '#64748b', borderLeftColor: '#94a3b8', opacity: 0.8 } };
         } else {
             const ticket = tickets.find(t => t.id === event.resource?.id);
             const isCompleted = ticket?.status === TicketStatus.Closed;
-            return { style: { ...style, backgroundColor: isCompleted ? '#f0fdf4' : '#e0f2fe', color: isCompleted ? '#166534' : '#0369a1', borderLeftColor: isCompleted ? '#22c55e' : '#0ea5e9' } };
+            
+            return { 
+                style: { 
+                    ...style, 
+                    backgroundColor: isCompleted ? '#f0fdf4' : '#e0f2fe', 
+                    color: isCompleted ? '#166534' : '#0369a1', 
+                    borderLeftColor: isCompleted ? '#22c55e' : '#0ea5e9',
+                    // AÑADIDO: Tachado y opacidad reducida si está completado
+                    textDecoration: isCompleted ? 'line-through' : 'none',
+                    opacity: isCompleted ? 0.75 : 1
+                } 
+            };
         }
     }, [tickets]);
 
@@ -320,11 +343,7 @@ const Maintenance: React.FC = () => {
             
             {isSettingsOpen && <ApiSettingsModal onClose={() => setIsSettingsOpen(false)} onSaved={() => { if(hasValidConfig()) { setIsGoogleConnected(true); initGoogleClient(loadGoogleData); } }} />}
             {schedulingTicket && <ScheduleTicketModal ticket={schedulingTicket} onClose={() => setSchedulingTicket(null)} onTicketScheduled={handleTicketScheduled} />}
-            {isRouteModalOpen && <RoutePlannerModal tickets={routeTickets} onClose={() => setIsRouteModalOpen(false)} onTicketComplete={async (id) => { 
-                const { updateTicketStatus } = await import('../services/supabaseService');
-                await updateTicketStatus(id, TicketStatus.Closed);
-                handleTicketCompletedFromRoute(id);
-            }} />}
+            {isRouteModalOpen && <RoutePlannerModal tickets={routeTickets} onClose={() => setIsRouteModalOpen(false)} onTicketComplete={(id) => handleTicketCompletedFromRoute(id)} />}
             {selectedTicket && <TicketDetailsModal ticket={selectedTicket} onClose={() => setSelectedTicket(null)} onTicketUpdated={(t) => setTickets(prev => prev.map(pt => pt.id === t.id ? t : pt))} />}
         </div>
     );

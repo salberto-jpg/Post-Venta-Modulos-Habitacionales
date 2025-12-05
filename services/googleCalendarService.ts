@@ -1,5 +1,6 @@
 
 import { GOOGLE_CALENDAR_SCOPES } from '../config';
+import { type Ticket } from '../types';
 
 declare global {
     interface Window {
@@ -203,4 +204,72 @@ export const fetchGoogleEvents = async (): Promise<GoogleCalendarEvent[]> => {
 
     const data = await response.json();
     return data.items || [];
+};
+
+// NUEVA FUNCIÓN: Buscar evento por título/fecha y marcar como COMPLETADO
+export const findAndMarkEventAsDone = async (ticket: Ticket) => {
+    if (!accessToken || !ticket.scheduledDate) return false;
+
+    try {
+        // 1. Definir rango de tiempo (El día agendado)
+        const startDay = new Date(ticket.scheduledDate);
+        const endDay = new Date(ticket.scheduledDate);
+        endDay.setDate(endDay.getDate() + 1);
+
+        const timeMin = startDay.toISOString();
+        const timeMax = endDay.toISOString();
+
+        // 2. Construir título esperado
+        const expectedTitle = `${ticket.title} - ${ticket.clientName}`;
+
+        // 3. Buscar eventos ese día
+        // Usamos 'q' para filtrar por texto libre y reducir resultados
+        const response = await fetch(
+            `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${timeMin}&timeMax=${timeMax}&q=${encodeURIComponent(ticket.title)}&singleEvents=true`,
+            { headers: { 'Authorization': `Bearer ${accessToken}` } }
+        );
+
+        if (!response.ok) return false;
+        
+        const data = await response.json();
+        const events: GoogleCalendarEvent[] = data.items || [];
+
+        // 4. Encontrar el evento que coincida mejor
+        // Buscamos algo que contenga el título del ticket O el formato completo que generamos
+        const targetEvent = events.find(e => 
+            e.summary.includes(ticket.title) && 
+            e.summary.includes(ticket.clientName || '') &&
+            !e.summary.includes('✔') // Evitar re-procesar
+        );
+
+        if (targetEvent) {
+            // 5. PATCH para actualizar:
+            // - Agregar Check al título
+            // - Cambiar colorId a '8' (Graphite/Gris) para indicar finalizado
+            const newTitle = `✔ [REALIZADO] ${targetEvent.summary.replace('🛠️ ', '')}`;
+            
+            const patchBody = {
+                summary: newTitle,
+                colorId: '8', // 8 = Graphite (Gris Oscuro), visualmente "apagado"
+                description: `--- ✅ SERVICIO COMPLETADO EL ${new Date().toLocaleDateString()} ---\n\n${targetEvent.description || ''}`
+            };
+
+            await fetch(
+                `https://www.googleapis.com/calendar/v3/calendars/primary/events/${targetEvent.id}`,
+                {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(patchBody)
+                }
+            );
+            return true;
+        }
+
+    } catch (e) {
+        console.error("Error updating Google Calendar event:", e);
+    }
+    return false;
 };
