@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { getAllTickets } from '../services/supabaseService';
+import { getAllTickets, updateTicketStatus } from '../services/supabaseService';
 import { initGoogleClient, loginToGoogle, fetchGoogleEvents, logoutFromGoogle, getGoogleUserProfile, hasValidConfig, isTokenValid, findAndMarkEventAsDone, type GoogleCalendarEvent } from '../services/googleCalendarService';
 import { type Ticket, TicketStatus } from '../types';
 import Spinner from './Spinner';
@@ -168,18 +168,24 @@ const Maintenance: React.FC = () => {
     const handleTicketCompletedFromRoute = async (ticketId: string) => {
         const ticket = tickets.find(t => t.id === ticketId);
         if (ticket) {
-            // Actualizar Supabase (local)
-            const updatedTicket = { ...ticket, status: TicketStatus.Closed };
-            setTickets(prev => prev.map(t => t.id === ticketId ? updatedTicket : t));
-            setRouteTickets(prev => prev.map(t => t.id === ticketId ? updatedTicket : t));
-            
-            // Actualizar Google Calendar (remoto)
-            if (isGoogleConnected && ticket.scheduledDate) {
-                await findAndMarkEventAsDone(ticket);
-                // Recargar eventos para ver el cambio de color/título
-                loadGoogleData();
+            try {
+                // 1. ACTUALIZAR BASE DE DATOS (IMPORTANTE: Esto faltaba)
+                await updateTicketStatus(ticket.id, TicketStatus.Closed);
+
+                // 2. Actualizar estado local (React)
+                const updatedTicket = { ...ticket, status: TicketStatus.Closed };
+                setTickets(prev => prev.map(t => t.id === ticketId ? updatedTicket : t));
+                setRouteTickets(prev => prev.map(t => t.id === ticketId ? updatedTicket : t));
+                
+                // 3. Actualizar Google Calendar (Remoto)
+                if (isGoogleConnected && ticket.scheduledDate) {
+                    await findAndMarkEventAsDone(ticket);
+                    loadGoogleData(); // Recargar eventos para ver cambio de color
+                }
+            } catch (error) {
+                console.error("Error al completar ticket:", error);
+                alert("Hubo un error al guardar el estado del ticket.");
             }
-            await fetchTickets();
         }
     };
 
