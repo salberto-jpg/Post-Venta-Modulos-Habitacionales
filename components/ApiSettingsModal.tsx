@@ -53,7 +53,7 @@ const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({ onClose, onSaved })
                             Significa que tu <strong>API Key</strong> tiene restricciones de seguridad y no permite usar el Calendario.
                         </p>
                         <ol className="text-xs text-red-800 list-decimal ml-4 space-y-1">
-                            <li>Ve a <a href="https://console.cloud.google.com/apis/credentials" target="_blank" className="underline font-bold">Google Cloud > Credenciales</a>.</li>
+                            <li>Ve a <a href="https://console.cloud.google.com/apis/credentials" target="_blank" className="underline font-bold">Google Cloud &gt; Credenciales</a>.</li>
                             <li>Edita tu <strong>API Key</strong> (icono de lápiz).</li>
                             <li>Baja a <strong>"Restricciones de API"</strong>.</li>
                             <li>Asegúrate de marcar <strong>Google Calendar API</strong> en la lista.</li>
