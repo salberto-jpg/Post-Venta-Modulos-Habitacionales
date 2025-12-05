@@ -28,7 +28,8 @@ const RoutePlannerModal: React.FC<RoutePlannerModalProps> = ({ tickets, onClose,
             .map(t => `${t.latitude},${t.longitude}`)
             .join('|');
 
-        const baseUrl = `https://www.google.com/maps/embed/v1/directions?key=${GOOGLE_API_KEY}&travelmode=driving`;
+        // CORRECCIÓN: 'travelmode' es para URLs universales, Embed API usa 'mode'
+        const baseUrl = `https://www.google.com/maps/embed/v1/directions?key=${GOOGLE_API_KEY}&mode=driving`;
         let url = `${baseUrl}&origin=${origin}&destination=${destination}`;
 
         if (waypoints) {
@@ -38,7 +39,7 @@ const RoutePlannerModal: React.FC<RoutePlannerModalProps> = ({ tickets, onClose,
         return url;
     }, [tickets]);
 
-    // URL general de ruta
+    // URL general de ruta (Link externo a Google Maps)
     const googleMapsNavigationUrl = useMemo(() => {
         if (tickets.length === 0) return '';
         const origin = `${tickets[0].latitude},${tickets[0].longitude}`;

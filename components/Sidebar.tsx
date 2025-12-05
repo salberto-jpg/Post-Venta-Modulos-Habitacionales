@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { type View, type UserProfile } from '../types';
 
@@ -31,17 +32,19 @@ const NavItem: React.FC<{
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, userProfile, onLogout }) => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+
     const handleMobileNavClick = (view: View) => { setCurrentView(view); setIsMobileMenuOpen(false); };
 
     return (
         <div className="w-full bg-white border-b border-slate-200 shadow-sm z-30 flex-shrink-0 sticky top-0">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex justify-between h-28">
+                <div className="flex justify-between h-20 md:h-24">
                     <div className="flex items-center">
-                        <div className="flex-shrink-0 flex items-center mr-8">
-                            <img src="https://metallo.com.ar/wp-content/uploads/2024/09/LOGO-GREEN-BOX_Mesa-de-trabajo-1.png" alt="Green Box Logo" className="h-20 md:h-24 w-auto object-contain" />
+                        <div className="flex-shrink-0 flex items-center mr-4 md:mr-8">
+                            <img src="https://metallo.com.ar/wp-content/uploads/2024/09/LOGO-GREEN-BOX_Mesa-de-trabajo-1.png" alt="Green Box Logo" className="h-16 md:h-20 w-auto object-contain" />
                         </div>
-                        <div className="hidden md:flex md:space-x-4 overflow-x-auto no-scrollbar items-center h-full">
+                        <div className="hidden md:flex md:space-x-2 overflow-x-auto no-scrollbar items-center h-full">
                             <NavItem viewName="dashboard" label="Dashboard" icon={<HomeIcon />} currentView={currentView} onClick={setCurrentView} />
                             <NavItem viewName="catalog" label="Catálogo" icon={<CubeIcon />} currentView={currentView} onClick={setCurrentView} />
                             <NavItem viewName="tickets" label="Tickets" icon={<TicketIcon />} currentView={currentView} onClick={setCurrentView} />
@@ -51,26 +54,58 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, userProf
                         </div>
                     </div>
                     
-                    {/* User Profile / Logout - Desktop */}
-                    <div className="hidden md:flex items-center space-x-4">
-                        <div className="text-right hidden lg:block">
-                            <p className="text-sm font-bold text-slate-800">{userProfile?.name || userProfile?.email}</p>
-                            <span className="text-xs uppercase font-semibold text-sky-600 bg-sky-50 px-2 py-0.5 rounded-full">{userProfile?.role || 'User'}</span>
-                        </div>
+                    {/* User Profile / Logout - Desktop (DROPDOWN MENU) */}
+                    <div className="hidden md:flex items-center space-x-2 relative">
                         <button 
-                            onClick={onLogout} 
-                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
-                            title="Cerrar Sesión"
+                            onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)} 
+                            className={`flex items-center justify-center h-10 w-10 rounded-full transition-all border shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 ${isUserDropdownOpen ? 'bg-sky-50 text-sky-600 border-sky-200 ring-2 ring-sky-100' : 'bg-slate-100 text-slate-500 hover:bg-sky-50 hover:text-sky-600 border-slate-200'}`}
+                            title="Perfil de Usuario"
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                            </svg>
+                            <UserCircleIcon className="h-7 w-7" />
                         </button>
+
+                        {isUserDropdownOpen && (
+                            <>
+                                <div className="fixed inset-0 z-40" onClick={() => setIsUserDropdownOpen(false)}></div>
+                                <div className="absolute right-0 top-14 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden ring-1 ring-black ring-opacity-5 origin-top-right animate-in fade-in zoom-in-95 duration-100">
+                                    <div className="p-6 border-b border-slate-100 bg-gradient-to-br from-slate-50 to-white">
+                                        <div className="flex items-center mb-4">
+                                            <div className="h-14 w-14 rounded-full bg-sky-100 flex items-center justify-center text-sky-600 text-2xl font-bold mr-4 border border-sky-200 shadow-sm">
+                                                {userProfile?.name?.charAt(0).toUpperCase() || 'U'}
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-slate-800 text-lg leading-tight">{userProfile?.name || 'Usuario'}</p>
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-800 text-white uppercase mt-1 tracking-wide shadow-sm">
+                                                    {userProfile?.role || 'User'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                                            <p className="text-xs text-slate-400 font-bold uppercase mb-1">Email</p>
+                                            <p className="text-sm text-slate-600 font-medium break-all">
+                                                {userProfile?.email}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="p-2 bg-slate-50">
+                                        <button
+                                            onClick={onLogout}
+                                            className="w-full flex items-center justify-center px-4 py-3 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors shadow-sm"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                            </svg>
+                                            Cerrar Sesión
+                                        </button>
+                                    </div>
+                                </div>
+                            </>
+                        )}
                     </div>
 
                     <div className="flex items-center md:hidden">
                         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-3 rounded-md text-slate-400 hover:bg-slate-100">
-                            {isMobileMenuOpen ? <XIcon className="h-10 w-10" /> : <MenuIcon className="h-10 w-10" />}
+                            {isMobileMenuOpen ? <XIcon className="h-8 w-8" /> : <MenuIcon className="h-8 w-8" />}
                         </button>
                     </div>
                 </div>
@@ -109,4 +144,5 @@ const DocumentTextIcon: React.FC<{className?: string}> = ({className}) => <svg x
 const CalendarIcon: React.FC<{className?: string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" /></svg>;
 const MenuIcon: React.FC<{className?: string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>;
 const XIcon: React.FC<{className?: string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>;
+const UserCircleIcon: React.FC<{className?: string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}><path fillRule="evenodd" d="M18.685 19.097A9.723 9.723 0 0021.75 12c0-5.385-4.365-9.75-9.75-9.75S2.25 6.615 2.25 12a9.723 9.723 0 003.065 7.097A9.716 9.716 0 0012 21.75a9.716 9.716 0 006.685-2.653zm-12.54-1.285A7.486 7.486 0 0112 15a7.486 7.486 0 015.855 2.812A8.224 8.224 0 0112 20.25a8.224 8.224 0 01-5.855-2.438zM15.75 9a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" clipRule="evenodd" /></svg>;
 export default Sidebar;

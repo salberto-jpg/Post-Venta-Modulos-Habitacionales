@@ -120,10 +120,10 @@ const TicketDetailsModal: React.FC<TicketDetailsModalProps> = ({ ticket: initial
                 </div>
                 
                 <div className="p-6 overflow-y-auto flex-1 space-y-6">
-                    {/* Map & Location Section */}
+                    {/* Map & Location Section - AUMENTADO TAMAÑO H-64 */}
                     {ticket.latitude && ticket.longitude && (
                         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                            <div className="h-48 w-full bg-slate-100 relative group">
+                            <div className="h-64 w-full bg-slate-100 relative group">
                                 {apiKey ? (
                                     <iframe
                                         width="100%"
@@ -134,7 +134,10 @@ const TicketDetailsModal: React.FC<TicketDetailsModalProps> = ({ ticket: initial
                                         src={`https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${ticket.latitude},${ticket.longitude}&zoom=15`}
                                     ></iframe>
                                 ) : (
-                                    <div className="flex items-center justify-center h-full text-slate-400">Mapa no disponible (Falta API Key)</div>
+                                    <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                                        <p className="font-bold mb-1">Mapa no disponible</p>
+                                        <p className="text-xs">(Falta API Key en Configuración)</p>
+                                    </div>
                                 )}
                                 <a 
                                     href={`https://www.google.com/maps/dir/?api=1&destination=${ticket.latitude},${ticket.longitude}`}
@@ -146,7 +149,7 @@ const TicketDetailsModal: React.FC<TicketDetailsModalProps> = ({ ticket: initial
                                     Cómo llegar
                                 </a>
                             </div>
-                            {ticket.address && <div className="p-3 text-xs text-slate-500 bg-slate-50 border-t">{ticket.address}</div>}
+                            {ticket.address && <div className="p-3 text-xs text-slate-500 bg-slate-50 border-t font-mono">{ticket.address}</div>}
                         </div>
                     )}
 
@@ -161,7 +164,6 @@ const TicketDetailsModal: React.FC<TicketDetailsModalProps> = ({ ticket: initial
 
                     <div>
                         <h3 className="font-semibold text-slate-700 mb-2">Fotos</h3>
-                        {/* (Photo rendering logic remains same as previous, simplified for this block) */}
                         <div className="grid grid-cols-3 gap-2">
                              {ticket.photos?.map((p, i) => <a key={i} href={p} target="_blank" className="block h-24 rounded overflow-hidden border"><img src={p} className="w-full h-full object-cover" /></a>)}
                         </div>
