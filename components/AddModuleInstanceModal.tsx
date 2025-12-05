@@ -55,19 +55,50 @@ const AddModuleInstanceModal: React.FC<AddModuleInstanceModalProps> = ({ clientI
         }
     }, [moduleToEdit]);
 
-    // Función para obtener dirección legible desde coordenadas
+    // Helper para cargar el script de Google Maps si no está presente
+    const loadGoogleMapsScript = (apiKey: string): Promise<void> => {
+        if (typeof window !== 'undefined' && window.google && window.google.maps) {
+            return Promise.resolve();
+        }
+        return new Promise((resolve, reject) => {
+            const scriptId = 'google-maps-script-loader';
+            if (document.getElementById(scriptId)) {
+                // Si ya se está cargando, esperar un poco (simple workaround) o simplemente resolver
+                // En un caso real usaríamos un singleton de carga, pero esto funciona para este contexto
+                setTimeout(resolve, 500); 
+                return;
+            }
+            const script = document.createElement('script');
+            script.id = scriptId;
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+            script.async = true;
+            script.defer = true;
+            script.onload = () => resolve();
+            script.onerror = (e) => reject(e);
+            document.body.appendChild(script);
+        });
+    };
+
+    // Función para obtener dirección legible usando el Geocoder de la API JS (Evita CORS)
     const fetchAddressFromCoords = async (lat: number, lng: number) => {
         const { apiKey } = getApiConfig();
         if (!apiKey) return;
 
         try {
-            const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`);
-            const data = await response.json();
-            if (data.status === 'OK' && data.results[0]) {
-                setAddress(data.results[0].formatted_address);
-            }
+            await loadGoogleMapsScript(apiKey);
+            
+            const geocoder = new window.google.maps.Geocoder();
+            geocoder.geocode({ location: { lat, lng } }, (results: any, status: any) => {
+                if (status === 'OK' && results && results[0]) {
+                    setAddress(results[0].formatted_address);
+                    setGeoError(''); // Limpiar errores si tuvo éxito
+                } else {
+                    console.error("Geocoder failed due to: " + status);
+                    // No mostramos error al usuario para no interrumpir, pero logueamos
+                }
+            });
         } catch (error) {
-            console.error("Error geocoding:", error);
+            console.error("Error loading Maps API or Geocoding:", error);
         }
     };
 
@@ -90,7 +121,8 @@ const AddModuleInstanceModal: React.FC<AddModuleInstanceModalProps> = ({ clientI
                 fetchAddressFromCoords(lat, lng);
             },
             (err) => {
-                setGeoError('Error obteniendo ubicación');
+                console.error(err);
+                setGeoError('Error obteniendo ubicación GPS. Verifique permisos.');
                 setIsGettingLocation(false);
             }
         );
