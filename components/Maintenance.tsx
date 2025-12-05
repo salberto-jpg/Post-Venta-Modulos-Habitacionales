@@ -10,15 +10,33 @@ import TicketDetailsModal from './TicketDetailsModal';
 import ApiSettingsModal from './ApiSettingsModal';
 import { Calendar, momentLocalizer, Messages, Formats } from 'react-big-calendar';
 import moment from 'moment';
-import 'moment/locale/es';
 
-// Configuración profunda de Moment.js para Español
-moment.locale('es', {
+// ELIMINADO: import 'moment/locale/es'; <- Esto suele fallar en entornos sin bundler.
+
+// DEFINICIÓN MANUAL DEL IDIOMA ESPAÑOL PARA ASEGURAR CARGA
+moment.updateLocale('es', {
+    months: 'Enero_Febrero_Marzo_Abril_Mayo_Junio_Julio_Agosto_Septiembre_Octubre_Noviembre_Diciembre'.split('_'),
+    monthsShort: 'Ene._Feb._Mar._Abr._May._Jun._Jul._Ago._Sep._Oct._Nov._Dic.'.split('_'),
+    weekdays: 'Domingo_Lunes_Martes_Miércoles_Jueves_Viernes_Sábado'.split('_'),
+    weekdaysShort: 'Dom._Lun._Mar._Mié._Jue._Vie._Sáb.'.split('_'),
+    weekdaysMin: 'Do_Lu_Ma_Mi_Ju_Vi_Sá'.split('_'),
+    longDateFormat: {
+        LT: 'H:mm',
+        LTS: 'H:mm:ss',
+        L: 'DD/MM/YYYY',
+        LL: 'D [de] MMMM [de] YYYY',
+        LLL: 'D [de] MMMM [de] YYYY H:mm',
+        LLLL: 'dddd, D [de] MMMM [de] YYYY H:mm'
+    },
     week: {
         dow: 1, // Lunes es el primer día de la semana
         doy: 4  // La semana que contiene el 4 de enero es la primera semana del año
     }
 });
+
+// Establecer el locale globalmente
+moment.locale('es');
+
 const localizer = momentLocalizer(moment);
 
 const messages: Messages = {
@@ -70,6 +88,9 @@ const Maintenance: React.FC = () => {
     const [googleUser, setGoogleUser] = useState<GoogleUser | null>(null);
     const [googleError, setGoogleError] = useState('');
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+    // Obtener zona horaria local del navegador para mostrar al usuario
+    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
     const fetchTickets = useCallback(async () => {
         setLoading(true);
@@ -157,6 +178,7 @@ const Maintenance: React.FC = () => {
             .filter(t => (t.status === TicketStatus.Scheduled || t.status === TicketStatus.Closed) && t.scheduledDate)
             .map(ticket => ({
                 title: `${ticket.title} - ${ticket.clientName}`,
+                // Conversión explícita para asegurar zona horaria local
                 start: new Date(ticket.scheduledDate!),
                 end: new Date(ticket.scheduledDate!),
                 allDay: true,
@@ -165,6 +187,7 @@ const Maintenance: React.FC = () => {
 
         const gEvents: CalendarEvent[] = googleEvents.map(evt => ({
             title: 'Ocupado (Google)', 
+            // Google envía ISO strings, new Date() los convierte automáticamente a la zona horaria local del navegador
             start: evt.start.dateTime ? new Date(evt.start.dateTime) : new Date(evt.start.date!),
             end: evt.end.dateTime ? new Date(evt.end.dateTime) : new Date(evt.end.date!),
             allDay: !evt.start.dateTime,
@@ -198,7 +221,12 @@ const Maintenance: React.FC = () => {
         <div className="h-full flex flex-col">
             <style>{customCalendarStyles}</style>
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-6 gap-4">
-                 <div><h2 className="text-4xl font-black text-slate-800">Agenda</h2></div>
+                 <div>
+                    <h2 className="text-4xl font-black text-slate-800">Agenda</h2>
+                    <p className="text-xs text-slate-400 font-medium mt-1">
+                        Zona horaria detectada: {userTimezone}
+                    </p>
+                 </div>
                  
                  <div className="flex flex-wrap gap-3 items-center">
                     <button onClick={() => setIsPendingListOpen(true)} className="bg-amber-50 text-amber-700 border border-amber-200 px-4 py-2 rounded-lg font-bold flex items-center shadow-sm hover:bg-amber-100 transition-colors">
@@ -251,7 +279,7 @@ const Maintenance: React.FC = () => {
                         startAccessor="start" 
                         endAccessor="end" 
                         messages={messages}
-                        culture="es" // Forzar cultura española en el componente
+                        culture="es" 
                         formats={calendarFormats} // Formato 24hs
                         min={new Date(0, 0, 0, 8, 0, 0)} // Inicio visual: 08:00 AM
                         max={new Date(0, 0, 0, 20, 0, 0)} // Fin visual: 08:00 PM
