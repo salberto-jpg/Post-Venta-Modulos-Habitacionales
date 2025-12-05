@@ -73,19 +73,18 @@ const Tickets: React.FC = () => {
         return tickets.filter(ticket => ticket.status === filter);
     }, [tickets, filter]);
     
-    const handleTicketStatusChange = (ticketId: string, newStatus: TicketStatus) => {
+    // Updated function to handle ANY update to the ticket (status, desc, photos, etc.)
+    const handleTicketUpdated = (updatedTicket: Ticket) => {
         setTickets(prevTickets =>
-            prevTickets.map(t => (t.id === ticketId ? { ...t, status: newStatus } : t))
+            prevTickets.map(t => (t.id === updatedTicket.id ? updatedTicket : t))
         );
-         if (selectedTicket && selectedTicket.id === ticketId) {
-            setSelectedTicket({ ...selectedTicket, status: newStatus });
-        }
+        // Also update the selected ticket modal view
+        setSelectedTicket(updatedTicket);
     };
 
     const handleTicketAdded = () => {
         fetchTickets();
     };
-
 
     if (loading) {
         return <div className="flex justify-center items-center h-full"><Spinner /></div>;
@@ -138,6 +137,7 @@ const Tickets: React.FC = () => {
                         </div>
                         
                         <h3 className="text-xl font-bold text-slate-800 mb-2 group-hover:text-sky-700 transition-colors line-clamp-2">{ticket.title}</h3>
+                        <p className="text-sm text-slate-500 mb-4 line-clamp-2">{ticket.description}</p>
                         
                         <div className="flex-grow space-y-3 mb-6">
                             <div className="flex items-start">
@@ -162,7 +162,7 @@ const Tickets: React.FC = () => {
                 <TicketDetailsModal
                     ticket={selectedTicket}
                     onClose={() => setSelectedTicket(null)}
-                    onStatusChange={handleTicketStatusChange}
+                    onTicketUpdated={handleTicketUpdated}
                 />
             )}
             {isAddModalOpen && (

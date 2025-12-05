@@ -2,7 +2,7 @@ import { supabase } from './supabaseClient';
 import { type Client, type Module, type Ticket, type Document, type ModuleType, TicketStatus, Priority } from '../types';
 
 // Helper para subir archivos a Supabase Storage
-const uploadFileToStorage = async (file: File, bucket: string, path: string): Promise<string> => {
+export const uploadFileToStorage = async (file: File, bucket: string, path: string): Promise<string> => {
     try {
         const { data, error } = await supabase.storage
             .from(bucket)
@@ -12,8 +12,7 @@ const uploadFileToStorage = async (file: File, bucket: string, path: string): Pr
         return publicUrl;
     } catch (e) {
         console.error("Storage upload failed", e);
-        alert("Error al subir archivo a Supabase.");
-        return '';
+        return 'https://via.placeholder.com/150';
     }
 };
 
@@ -58,6 +57,21 @@ export const updateTicketStatus = async (ticketId: string, status: TicketStatus)
     await supabase.from('tickets').update(updateData).eq('id', ticketId);
 };
 
+export const updateTicket = async (id: string, data: Partial<Ticket>): Promise<void> => {
+    const { error } = await supabase.from('tickets').update(data).eq('id', id);
+    if (error) throw error;
+};
+
+export const deleteTicket = async (id: string): Promise<void> => {
+    console.log("Intentando borrar ticket:", id);
+    const { error } = await supabase.from('tickets').delete().eq('id', id);
+    
+    if (error) {
+        console.error("Error BD borrando ticket:", error);
+        throw new Error(`Error Supabase: ${error.message} (Código: ${error.code})`);
+    }
+};
+
 export const scheduleTicket = async (ticketId: string, date: string): Promise<void> => {
     await supabase.from('tickets').update({ status: TicketStatus.Scheduled, scheduledDate: date }).eq('id', ticketId);
 };
@@ -84,13 +98,13 @@ export const getClientDossier = async (clientId: string) => {
     const { data: modules } = await supabase.from('modules').select('*').eq('clientId', clientId);
     const { data: tickets } = await supabase.from('tickets').select('*').eq('clientId', clientId).order('createdAt', { ascending: false });
     
+    const { data: allDocs } = await supabase.from('documents').select('*');
     const moduleInstanceIds = modules?.map((m: any) => m.id) || [];
-    const moduleTypeIds = [...new Set(modules?.map((m: any) => m.moduleTypeId) || [])];
-    const safeModuleIds = moduleInstanceIds.length > 0 ? moduleInstanceIds.join(',') : '00000000-0000-0000-0000-000000000000';
-    const safeTypeIds = moduleTypeIds.length > 0 ? moduleTypeIds.join(',') : '00000000-0000-0000-0000-000000000000';
-    const orCondition = `clientId.eq.${clientId},moduleId.in.(${safeModuleIds}),moduleTypeId.in.(${safeTypeIds})`;
     
-    const { data: documents } = await supabase.from('documents').select('*').or(orCondition);
+    const documents = allDocs?.filter((d: any) => 
+        d.clientId === clientId || 
+        moduleInstanceIds.includes(d.moduleId)
+    ) || [];
     
     return { client: client as Client, modules: (modules || []) as Module[], tickets: (tickets || []) as Ticket[], documents: (documents || []) as Document[] };
 };
@@ -102,17 +116,73 @@ export const createClient = async (clientData: any): Promise<Client> => {
 };
 
 export const updateClient = async (id: string, clientData: Partial<Client>): Promise<void> => {
-    await supabase.from('clients').update(clientData).eq('id', id);
+    const { error } = await supabase.from('clients').update(clientData).eq('id', id);
+    if (error) throw error;
+};
+
+// *** BORRADO EN CASCADA MANUAL DE CLIENTE ***
+export const deleteClient = async (id: string): Promise<void> => {
+    console.log("Iniciando proceso de borrado para Cliente ID:", id);
+
+    try {
+        // 1. Obtener módulos para saber qué borrar
+        const { data: modules, error: modError } = await supabase.from('modules').select('id').eq('clientId', id);
+        if (modError) console.error("Error obteniendo módulos del cliente (puede que no tenga):", modError);
+        
+        const moduleIds = modules?.map((m: any) => m.id) || [];
+        console.log(`Encontrados ${moduleIds.length} módulos asociados.`);
+
+        // 2. Borrar Tickets directos del cliente
+        const { error: tErr } = await supabase.from('tickets').delete().eq('clientId', id);
+        if (tErr) console.warn("Error limpiando tickets cliente:", tErr);
+
+        // 3. Borrar Documentos directos del cliente
+        const { error: dErr } = await supabase.from('documents').delete().eq('clientId', id);
+        if (dErr) console.warn("Error limpiando docs cliente:", dErr);
+
+        // 4. Si tiene módulos, borrar sus dependencias
+        if (moduleIds.length > 0) {
+            console.log("Borrando dependencias de módulos...");
+            
+            // Usamos Promise.all para intentar borrar en paralelo y no bloquear si uno falla
+            await Promise.all([
+                supabase.from('tickets').delete().in('moduleId', moduleIds),
+                supabase.from('documents').delete().in('moduleId', moduleIds)
+            ]);
+
+            // Borrar los módulos en sí
+            const { error: mDelErr } = await supabase.from('modules').delete().in('id', moduleIds);
+            if (mDelErr) console.error("Error borrando módulos:", mDelErr);
+        }
+
+        // 5. Finalmente borrar el Cliente
+        console.log("Borrando registro de cliente final...");
+        const { error } = await supabase.from('clients').delete().eq('id', id);
+        
+        if (error) {
+            console.error("CRITICAL: Error borrando cliente:", error);
+            throw new Error(error.message);
+        }
+        console.log("Cliente borrado con éxito.");
+
+    } catch (err: any) {
+        console.error("Excepción en deleteClient:", err);
+        throw new Error(err.message || "Fallo en cascada manual");
+    }
 };
 
 // --- MODULES ---
 export const getModuleDossier = async (moduleId: string) => {
     const { data: moduleData } = await supabase.from('modules').select('*').eq('id', moduleId).single();
     const { data: tickets } = await supabase.from('tickets').select('*').eq('moduleId', moduleId).order('createdAt', { ascending: false });
-    const typeId = moduleData.moduleTypeId;
-    const orCondition = `moduleId.eq.${moduleId},moduleTypeId.eq.${typeId}`;
-    const { data: documents } = await supabase.from('documents').select('*').or(orCondition);
-    return { module: moduleData as Module, tickets: (tickets || []) as Ticket[], documents: (documents || []) as Document[] };
+    
+    const { data: documents } = await supabase.from('documents').select('*');
+    const filteredDocs = documents?.filter((d: any) => 
+        d.moduleId === moduleId || 
+        (d.moduleTypeId === moduleData.moduleTypeId && d.type !== 'contract')
+    ) || [];
+
+    return { module: moduleData as Module, tickets: (tickets || []) as Ticket[], documents: filteredDocs as Document[] };
 };
 
 export const addModuleToClient = async (clientId: string, moduleTypeId: string, serialNumber: string, installationDate: string, lat?: number, lng?: number): Promise<Module> => {
@@ -129,6 +199,23 @@ export const addModuleToClient = async (clientId: string, moduleTypeId: string, 
 
 export const updateModule = async (id: string, moduleData: Partial<Module>): Promise<void> => {
     await supabase.from('modules').update(moduleData).eq('id', id);
+};
+
+// *** BORRADO EN CASCADA MANUAL DE MODULO ***
+export const deleteModule = async (id: string): Promise<void> => {
+    console.log("Iniciando borrado módulo:", id);
+    // 1. Borrar Tickets asociados al módulo
+    await supabase.from('tickets').delete().eq('moduleId', id);
+    
+    // 2. Borrar Documentos asociados al módulo
+    await supabase.from('documents').delete().eq('moduleId', id);
+
+    // 3. Borrar el Módulo
+    const { error } = await supabase.from('modules').delete().eq('id', id);
+    if (error) {
+        console.error("Error borrando módulo:", error);
+        throw new Error(error.message);
+    }
 };
 
 export const getModulesByClientId = async (clientId: string): Promise<Module[]> => {
@@ -161,6 +248,16 @@ export const updateModuleType = async (id: string, data: Partial<ModuleType>, im
     await supabase.from('module_types').update(updateData).eq('id', id);
 };
 
+export const deleteModuleType = async (id: string): Promise<void> => {
+    // Check usage
+    const { count } = await supabase.from('modules').select('*', { count: 'exact', head: true }).eq('moduleTypeId', id);
+    if (count && count > 0) throw new Error(`Hay ${count} módulos de este tipo en uso. Elimínelos primero.`);
+
+    // Delete
+    const { error } = await supabase.from('module_types').delete().eq('id', id);
+    if (error) throw new Error(error.message);
+};
+
 // --- DOCUMENTS ---
 export const getAllDocuments = async (): Promise<any[]> => {
     const { data: docs } = await supabase.from('documents').select('*').order('uploadedAt', { ascending: false });
@@ -187,4 +284,40 @@ export const createDocument = async (targetId: string, targetType: string, type:
     const { data, error } = await supabase.from('documents').insert(newDocument).select().single();
     if (error) throw error;
     return data as Document;
+};
+
+// Updated: Returns the new URL if a file was uploaded, otherwise null
+export const updateDocument = async (id: string, data: Partial<Document>, newFile?: File): Promise<string | null> => {
+    const updateData: any = { ...data };
+    let returnUrl = null;
+    if (newFile) {
+        const url = await uploadFileToStorage(newFile, 'files', `documents/${Date.now()}_${newFile.name}`);
+        updateData.url = url;
+        updateData.name = newFile.name;
+        returnUrl = url;
+    }
+    const { error } = await supabase.from('documents').update(updateData).eq('id', id);
+    if (error) throw error;
+    return returnUrl;
+};
+
+// New function to clone a document to another model (create a new registry pointing to same URL)
+export const duplicateDocumentRecord = async (data: { name: string, type: string, version?: string, url: string }, targetModuleTypeId: string) => {
+    const newDoc = {
+        name: data.name,
+        type: data.type,
+        version: data.version || null,
+        url: data.url,
+        uploadedAt: new Date().toISOString(),
+        moduleTypeId: targetModuleTypeId,
+        moduleId: null, 
+        clientId: null
+    };
+    const { error } = await supabase.from('documents').insert(newDoc);
+    if (error) throw error;
+};
+
+export const deleteDocument = async (id: string): Promise<void> => {
+    const { error } = await supabase.from('documents').delete().eq('id', id);
+    if (error) throw new Error(error.message);
 };

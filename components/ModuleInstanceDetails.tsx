@@ -1,13 +1,13 @@
-
 import React, { useState, useEffect } from 'react';
 import { type Module, type Ticket, TicketStatus, type Document } from '../types';
-import { getModuleDossier } from '../services/supabaseService';
+import { getModuleDossier, deleteModule, deleteDocument } from '../services/supabaseService';
 import AddModuleInstanceModal from './AddModuleInstanceModal';
 import Spinner from './Spinner';
+import ConfirmModal from './ConfirmModal';
 
 interface ModuleInstanceDetailsProps {
     moduleInstance: Module;
-    history: Ticket[]; // Keep for initial render or fallback
+    history: Ticket[];
     onBack: () => void;
 }
 
@@ -19,6 +19,11 @@ const ModuleInstanceDetails: React.FC<ModuleInstanceDetailsProps> = ({ moduleIns
     const [loading, setLoading] = useState(true);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<'general' | 'docs'>('general');
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    // Modal States
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [docToDelete, setDocToDelete] = useState<{id: string, name: string} | null>(null);
 
     const fetchDossier = async () => {
         setLoading(true);
@@ -37,8 +42,32 @@ const ModuleInstanceDetails: React.FC<ModuleInstanceDetailsProps> = ({ moduleIns
     useEffect(() => {
         fetchDossier();
     }, [initialModule.id]);
+
+    const handleDelete = async () => {
+        setShowDeleteConfirm(false);
+        setIsDeleting(true);
+        try {
+            await deleteModule(moduleData.id);
+            onBack();
+        } catch (e: any) {
+            console.error(e);
+            alert("Error al eliminar el módulo: " + (e.message || "Permisos insuficientes."));
+            setIsDeleting(false);
+        }
+    };
+
+    const handleDeleteDocument = async () => {
+        if (!docToDelete) return;
+        try {
+            await deleteDocument(docToDelete.id);
+            setDocToDelete(null);
+            fetchDossier();
+        } catch (error: any) {
+            console.error("Error deleting document:", error);
+            alert("No se pudo eliminar el documento.");
+        }
+    };
     
-    // Sort tickets by date desc
     const sortedHistory = [...tickets].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     const getDocumentIcon = (type: Document['type']) => {
@@ -60,13 +89,22 @@ const ModuleInstanceDetails: React.FC<ModuleInstanceDetailsProps> = ({ moduleIns
                     <button onClick={onBack} className="text-sm text-slate-500 hover:text-sky-600 flex items-center">
                         &larr; Volver al Legajo
                     </button>
-                    <button 
-                        onClick={() => setIsEditModalOpen(true)}
-                        className="text-sm text-sky-600 hover:text-sky-800 font-medium flex items-center border border-sky-200 bg-sky-50 px-3 py-1 rounded-md"
-                    >
-                        <PencilIcon className="h-4 w-4 mr-2" />
-                        Editar Módulo
-                    </button>
+                    <div className="flex gap-2">
+                        <button 
+                            onClick={() => setShowDeleteConfirm(true)}
+                            disabled={isDeleting}
+                            className="text-sm text-red-600 font-medium border border-red-200 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md"
+                        >
+                            {isDeleting ? 'Eliminando...' : 'Eliminar'}
+                        </button>
+                        <button 
+                            onClick={() => setIsEditModalOpen(true)}
+                            className="text-sm text-sky-600 hover:text-sky-800 font-medium flex items-center border border-sky-200 bg-sky-50 px-3 py-1 rounded-md"
+                        >
+                            <PencilIcon className="h-4 w-4 mr-2" />
+                            Editar Módulo
+                        </button>
+                    </div>
                 </div>
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
                     <div>
@@ -210,14 +248,23 @@ const ModuleInstanceDetails: React.FC<ModuleInstanceDetailsProps> = ({ moduleIns
                                             </div>
                                         </div>
                                     </div>
-                                    <a 
-                                        href={doc.url} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer" 
-                                        className="text-sky-600 hover:text-sky-800 text-sm font-medium px-3 py-1 rounded hover:bg-sky-50"
-                                    >
-                                        Ver Documento
-                                    </a>
+                                    <div className="flex items-center space-x-2">
+                                        <a 
+                                            href={doc.url} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer" 
+                                            className="text-sky-600 hover:text-sky-800 text-sm font-medium px-3 py-1 rounded hover:bg-sky-50"
+                                        >
+                                            Ver
+                                        </a>
+                                        <button 
+                                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDocToDelete({id: doc.id, name: doc.name}); }}
+                                            className="text-red-500 hover:text-red-700 p-2 border border-red-100 bg-red-50 rounded"
+                                            title="Eliminar documento"
+                                        >
+                                            <TrashIcon className="h-5 w-5" />
+                                        </button>
+                                    </div>
                                 </div>
                             ))
                         ) : (
@@ -242,6 +289,26 @@ const ModuleInstanceDetails: React.FC<ModuleInstanceDetailsProps> = ({ moduleIns
                     }}
                 />
             )}
+
+            <ConfirmModal 
+                isOpen={showDeleteConfirm}
+                title="Eliminar Módulo"
+                message={`¿Estás seguro de que deseas eliminar el módulo ${moduleData.serialNumber}?\n\nSe borrarán también todos los tickets y documentos asociados.`}
+                confirmText="Sí, Eliminar"
+                isDestructive={true}
+                onConfirm={handleDelete}
+                onCancel={() => setShowDeleteConfirm(false)}
+            />
+
+            <ConfirmModal 
+                isOpen={!!docToDelete}
+                title="Eliminar Documento"
+                message={`¿Eliminar el documento "${docToDelete?.name}"?`}
+                confirmText="Eliminar"
+                isDestructive={true}
+                onConfirm={handleDeleteDocument}
+                onCancel={() => setDocToDelete(null)}
+            />
         </div>
     );
 };
@@ -269,5 +336,8 @@ const BookOpenIcon: React.FC<{className?: string}> = ({className}) => <svg xmlns
 const ShieldCheckIcon: React.FC<{className?: string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.286zm0 13.036h.008v.008h-.008v-.008z" /></svg>;
 const MapIcon: React.FC<{className?: string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.5-12.75a.75.75 0 01.75.75v14.25a.75.75 0 01-1.5 0V4.5a.75.75 0 01.75-.75zM3.75 12a.75.75 0 01.75-.75h14.25a.75.75 0 010 1.5H4.5a.75.75 0 01-.75-.75z" /></svg>;
 const DocumentIcon: React.FC<{className?: string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>;
+const TrashIcon: React.FC<{className?: string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+    </svg>;
 
 export default ModuleInstanceDetails;

@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getAllTickets } from '../services/supabaseService';
-import { initGoogleClient, loginToGoogle, fetchGoogleEvents, type GoogleCalendarEvent } from '../services/googleCalendarService';
+import { initGoogleClient, loginToGoogle, fetchGoogleEvents, logoutFromGoogle, getGoogleUserProfile, hasValidConfig, type GoogleCalendarEvent } from '../services/googleCalendarService';
 import { type Ticket, TicketStatus } from '../types';
 import Spinner from './Spinner';
 import ScheduleTicketModal from './ScheduleTicketModal';
 import RoutePlannerModal from './RoutePlannerModal';
 import TicketDetailsModal from './TicketDetailsModal';
+import ApiSettingsModal from './ApiSettingsModal'; // Importar el nuevo modal
 import { Calendar, momentLocalizer, Messages } from 'react-big-calendar';
 import moment from 'moment';
 import 'moment/locale/es';
@@ -29,7 +30,6 @@ const messages: Messages = {
     showMore: total => `+${total} más`
 };
 
-// Custom Styles Injection to override react-big-calendar defaults
 const customCalendarStyles = `
     .rbc-calendar { font-family: inherit; }
     .rbc-toolbar { margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
@@ -82,6 +82,12 @@ interface CalendarEvent {
     resource?: { source: 'app' | 'google', id: string, link?: string };
 }
 
+interface GoogleUser {
+    name: string;
+    picture: string;
+    email: string;
+}
+
 const Maintenance: React.FC = () => {
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [loading, setLoading] = useState(true);
@@ -90,8 +96,16 @@ const Maintenance: React.FC = () => {
     const [isRouteModalOpen, setIsRouteModalOpen] = useState(false);
     const [routeTickets, setRouteTickets] = useState<Ticket[]>([]);
     const [isPendingListOpen, setIsPendingListOpen] = useState(false);
+    
+    // Google State
     const [isGoogleConnected, setIsGoogleConnected] = useState(false);
     const [googleEvents, setGoogleEvents] = useState<GoogleCalendarEvent[]>([]);
+    const [googleUser, setGoogleUser] = useState<GoogleUser | null>(null);
+    const [googleError, setGoogleError] = useState('');
+    const [isSyncing, setIsSyncing] = useState(false);
+    
+    // Settings Modal
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
     const fetchTickets = useCallback(async () => {
         setLoading(true);
@@ -105,20 +119,69 @@ const Maintenance: React.FC = () => {
         }
     }, []);
 
+    const loadGoogleData = async () => {
+        setIsSyncing(true);
+        setGoogleError('');
+        try {
+            const userProfile = await getGoogleUserProfile();
+            if (userProfile) setGoogleUser(userProfile);
+
+            const events = await fetchGoogleEvents();
+            setGoogleEvents(events);
+            setIsGoogleConnected(true);
+        } catch (error: any) {
+            console.error("Sync Error:", error);
+            if (error.message === "TOKEN_EXPIRED") {
+                setIsGoogleConnected(false);
+                setGoogleUser(null);
+            } else if (error.message.includes("PERMISO")) {
+                 setGoogleError("Falta permiso en Google Cloud");
+            } else {
+                setGoogleError('Error de sincronización');
+            }
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
     useEffect(() => {
         fetchTickets();
-        initGoogleClient(async () => {
-            setIsGoogleConnected(true);
-            try {
-                const events = await fetchGoogleEvents();
-                setGoogleEvents(events);
-            } catch (error) {
-                console.error("Error fetching Google events:", error);
-            }
-        });
+        
+        // Solo inicializar si hay config válida
+        if (hasValidConfig()) {
+            const timer = setTimeout(() => {
+                initGoogleClient((accessToken) => {
+                    loadGoogleData();
+                });
+            }, 1000);
+            return () => clearTimeout(timer);
+        }
     }, [fetchTickets]);
 
-    const handleGoogleLogin = () => loginToGoogle();
+    const handleGoogleLogin = () => {
+        setGoogleError('');
+        if (!hasValidConfig()) {
+            setIsSettingsOpen(true);
+        } else {
+            loginToGoogle();
+        }
+    };
+
+    const handleGoogleLogout = () => {
+        logoutFromGoogle();
+        setIsGoogleConnected(false);
+        setGoogleEvents([]);
+        setGoogleUser(null);
+    };
+
+    const handleApiSettingsSaved = () => {
+        // Reintentar inicialización con las nuevas credenciales
+        if (hasValidConfig()) {
+             initGoogleClient((accessToken) => {
+                loadGoogleData();
+            });
+        }
+    };
 
     const pendingTickets = useMemo(() => {
         return tickets.filter(t => t.status === TicketStatus.New || t.status === TicketStatus.InProgress);
@@ -175,8 +238,6 @@ const Maintenance: React.FC = () => {
 
     const eventPropGetter = useCallback((event: CalendarEvent) => {
         let style = {};
-        
-        // Base visual style for all events: Modern Card Look
         const baseStyle = {
             border: 'none',
             borderRadius: '4px',
@@ -184,7 +245,7 @@ const Maintenance: React.FC = () => {
             fontWeight: '600',
             padding: '2px 8px',
             boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-            borderLeft: '4px solid', // Colored Accent Bar
+            borderLeft: '4px solid', 
             marginBottom: '4px'
         };
 
@@ -198,25 +259,14 @@ const Maintenance: React.FC = () => {
         } else {
             const ticket = tickets.find(t => t.id === event.resource?.id);
             const isCompleted = ticket?.status === TicketStatus.Closed;
-
-            if (isCompleted) {
-                style = {
-                    ...baseStyle,
-                    backgroundColor: '#f1f5f9', // slate-100
-                    color: '#64748b', // slate-500
-                    borderLeftColor: '#94a3b8', // slate-400
-                    textDecoration: 'line-through'
-                };
-            } else {
-                style = {
-                    ...baseStyle,
-                    backgroundColor: '#e0f2fe', // sky-100
-                    color: '#0369a1', // sky-700
-                    borderLeftColor: '#0ea5e9', // sky-500
-                };
-            }
+            style = {
+                ...baseStyle,
+                backgroundColor: isCompleted ? '#f1f5f9' : '#e0f2fe',
+                color: isCompleted ? '#64748b' : '#0369a1',
+                borderLeftColor: isCompleted ? '#94a3b8' : '#0ea5e9',
+                textDecoration: isCompleted ? 'line-through' : 'none'
+            };
         }
-        
         return { style };
     }, [tickets]);
 
@@ -267,6 +317,7 @@ const Maintenance: React.FC = () => {
             </div>
 
             <div className="flex-grow flex flex-col">
+                {/* Connection Status Bar */}
                 <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200 shadow-sm mb-4 flex justify-between items-center">
                     <div className="flex items-center space-x-6">
                         <div className="flex items-center">
@@ -274,22 +325,56 @@ const Maintenance: React.FC = () => {
                             <span className="text-sm font-semibold text-slate-600">Servicios GreenBox</span>
                         </div>
                         <div className="flex items-center">
-                            <span className="w-3 h-3 rounded-full bg-emerald-500 mr-2 shadow-sm"></span> 
+                            <span className={`w-3 h-3 rounded-full mr-2 shadow-sm transition-colors ${isGoogleConnected ? 'bg-emerald-500' : 'bg-slate-300'}`}></span> 
                             <span className="text-sm font-semibold text-slate-600">Google Calendar</span>
                         </div>
                     </div>
-                    <div>
+                    
+                    <div className="flex items-center gap-2">
+                        {googleError && <span className="text-xs text-red-500 font-medium mr-2">{googleError}</span>}
+                        
                         {!isGoogleConnected ? (
-                            <button onClick={handleGoogleLogin} className="text-sm font-bold text-sky-600 hover:text-white hover:bg-sky-600 flex items-center bg-sky-50 px-4 py-2 rounded-lg border border-sky-200 transition-all shadow-sm">
-                                <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="h-4 w-4 mr-2" alt="Google" />
-                                Conectar
-                            </button>
+                             <div className="flex items-center gap-2">
+                                <button 
+                                    onClick={() => setIsSettingsOpen(true)}
+                                    className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                                    title="Configurar claves de API"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" /></svg>
+                                </button>
+                                <button onClick={handleGoogleLogin} className="text-sm font-bold text-sky-600 hover:text-white hover:bg-sky-600 flex items-center bg-sky-50 px-4 py-2 rounded-lg border border-sky-200 transition-all shadow-sm">
+                                    <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="h-4 w-4 mr-2" alt="Google" />
+                                    Conectar mi Calendario
+                                </button>
+                            </div>
                         ) : (
-                            <span className="flex items-center text-sm font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">
-                                <span className="w-2 h-2 bg-emerald-500 rounded-full mr-2 animate-pulse"></span>
-                                Sincronizado
-                            </span>
+                            <div className="flex items-center bg-emerald-50 px-2 py-1.5 rounded-lg border border-emerald-100">
+                                {googleUser && (
+                                    <div className="flex items-center mr-3 border-r border-emerald-200 pr-3">
+                                        <img src={googleUser.picture} alt={googleUser.name} className="h-6 w-6 rounded-full mr-2" />
+                                        <div className="flex flex-col">
+                                            <span className="text-xs font-bold text-emerald-800 leading-tight">{googleUser.name}</span>
+                                            <span className="text-[10px] text-emerald-600 leading-tight">{googleUser.email}</span>
+                                        </div>
+                                    </div>
+                                )}
+                                <div className="flex items-center mr-3">
+                                    <span className="w-2 h-2 bg-emerald-500 rounded-full mr-2 animate-pulse"></span>
+                                    <span className="text-xs font-bold text-emerald-700">Conectado</span>
+                                </div>
+                                <button 
+                                    onClick={() => setIsSettingsOpen(true)}
+                                    className="p-1 text-emerald-400 hover:text-emerald-600 hover:bg-emerald-100 rounded mr-2"
+                                    title="Configuración"
+                                >
+                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" /></svg>
+                                </button>
+                                <button onClick={handleGoogleLogout} className="text-xs text-slate-400 hover:text-red-500 font-medium underline px-2">
+                                    Salir
+                                </button>
+                            </div>
                         )}
+                        {isSyncing && <Spinner />}
                     </div>
                 </div>
 
@@ -356,6 +441,8 @@ const Maintenance: React.FC = () => {
                     </div>
                 </div>
             )}
+            
+            {isSettingsOpen && <ApiSettingsModal onClose={() => setIsSettingsOpen(false)} onSaved={handleApiSettingsSaved} />}
 
             {schedulingTicket && <ScheduleTicketModal ticket={schedulingTicket} onClose={() => setSchedulingTicket(null)} onTicketScheduled={handleTicketScheduled} />}
             {isRouteModalOpen && <RoutePlannerModal tickets={routeTickets} onClose={() => setIsRouteModalOpen(false)} onTicketComplete={() => {}} />}
@@ -372,6 +459,6 @@ const Maintenance: React.FC = () => {
 };
 
 const MapIcon: React.FC<{className?: string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.5-12.75a.75.75 0 01.75.75v14.25a.75.75 0 01-1.5 0V4.5a.75.75 0 01.75-.75zM3.75 12a.75.75 0 01.75-.75h14.25a.75.75 0 010 1.5H4.5a.75.75 0 01-.75-.75z" /></svg>;
-const TicketIcon: React.FC<{className?: string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-1.5h5.25m-5.25 0h5.25m-5.25 0h5.25m-5.25 0h5.25M3 4.5h15a2.25 2.25 0 012.25 2.25v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75A2.25 2.25 0 013 4.5z" /></svg>;
+const TicketIcon: React.FC<{className?: string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-1.5h5.25m-5.25 0h5.25m-5.25 0h5.25M3 4.5h15a2.25 2.25 0 012.25 2.25v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75A2.25 2.25 0 013 4.5z" /></svg>;
 
 export default Maintenance;

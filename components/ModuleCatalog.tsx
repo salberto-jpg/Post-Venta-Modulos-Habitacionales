@@ -18,8 +18,15 @@ const ModuleCatalog: React.FC = () => {
 
     useEffect(() => { fetchModuleTypes(); }, []);
     const fetchModuleTypes = async () => { setLoading(true); setModuleTypes(await getAllModuleTypes()); setLoading(false); };
-    const handleCreateSubmit = async (e: React.FormEvent) => { e.preventDefault(); setIsCreating(true); await createModuleType({ name: newModelName, description: newModelDesc }, selectedFile || undefined); await fetchModuleTypes(); setIsCreateModalOpen(false); setIsCreating(false); };
+    const handleCreateSubmit = async (e: React.FormEvent) => { e.preventDefault(); setIsCreating(true); await createModuleType({ name: newModelName, description: newModelDesc }, selectedFile || undefined); await fetchModuleTypes(); setIsCreateModalOpen(false); setIsCreating(false); setSelectedFile(null); setNewModelName(''); setNewModelDesc(''); };
     const handleImageClick = (e: React.MouseEvent, imageUrl: string) => { e.stopPropagation(); setPreviewImage(imageUrl); };
+
+    const formatBytes = (bytes: number) => {
+        if (!+bytes) return '0 Bytes';
+        const k = 1024;
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${['Bytes', 'KB', 'MB', 'GB'][i]}`;
+    };
 
     if (loading) return <div className="flex justify-center p-10"><Spinner /></div>;
     if (selectedModuleType) return <ModuleTypeDetails moduleType={selectedModuleType} onBack={() => setSelectedModuleType(null)} />;
@@ -47,7 +54,28 @@ const ModuleCatalog: React.FC = () => {
                         <form onSubmit={handleCreateSubmit} className="space-y-4">
                             <input type="text" placeholder="Nombre" value={newModelName} onChange={e => setNewModelName(e.target.value)} className="w-full border p-2 rounded" required />
                             <textarea placeholder="Descripción" value={newModelDesc} onChange={e => setNewModelDesc(e.target.value)} className="w-full border p-2 rounded" required />
-                            <FileDropzone onFilesSelected={f => setSelectedFile(f[0])} accept={{ 'image/*': [] }} maxFiles={1} />
+                            
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Imagen del Modelo</label>
+                                <FileDropzone onFilesSelected={f => setSelectedFile(f[0])} accept={{ 'image/*': [] }} maxFiles={1} />
+                                {selectedFile && (
+                                    <div className="flex items-center justify-between p-3 bg-sky-50 border border-sky-200 rounded-md mt-2">
+                                        <div className="flex items-center overflow-hidden">
+                                            <div className="h-10 w-10 rounded bg-white border border-sky-100 flex items-center justify-center mr-3 shrink-0">
+                                                <span className="text-xl">🖼️</span>
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-bold text-sky-800 truncate" title={selectedFile.name}>{selectedFile.name}</p>
+                                                <p className="text-xs text-sky-600">{formatBytes(selectedFile.size)}</p>
+                                            </div>
+                                        </div>
+                                        <button type="button" onClick={() => setSelectedFile(null)} className="text-sky-500 hover:text-red-500 font-bold px-2">
+                                            ✕
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+
                             <div className="flex justify-end gap-2"><button type="button" onClick={() => setIsCreateModalOpen(false)} className="px-4 py-2 border rounded">Cancelar</button><button type="submit" disabled={isCreating} className="px-4 py-2 bg-sky-600 text-white rounded">Guardar</button></div>
                         </form>
                     </div>
