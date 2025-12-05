@@ -45,21 +45,37 @@ const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({ onClose, onSaved })
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-600">✕</button>
                 </div>
 
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-                    <h3 className="text-sm font-bold text-red-800 mb-2 flex items-center">
-                        <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
-                        CRÍTICO: Evita el Error 400
+                {/* Error 403 / API no habilitada */}
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                    <h3 className="text-sm font-bold text-amber-800 mb-2 flex items-center">
+                        <span className="mr-2">🔌</span> Paso Crucial: Habilitar API
                     </h3>
-                    <p className="text-xs text-red-700 mb-3 leading-relaxed">
-                        Si ves <strong>"Error 400: solicitud no válida"</strong>, es porque la URL de abajo no está autorizada en Google Cloud.
+                    <p className="text-xs text-amber-800 mb-2">
+                        Si ves un <strong>Error 403</strong>, es porque falta "encender" el servicio de Calendario.
                     </p>
+                    <a 
+                        href="https://console.cloud.google.com/apis/library/calendar-json.googleapis.com" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-block bg-white text-amber-700 border border-amber-300 px-3 py-1.5 rounded text-xs font-bold hover:bg-amber-50"
+                    >
+                        Click aquí para habilitar Google Calendar API →
+                    </a>
+                </div>
+
+                {/* Error 400 / Origen */}
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-6">
+                    <h3 className="text-sm font-bold text-slate-700 mb-2 flex items-center">
+                        <svg className="w-4 h-4 mr-1 text-slate-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                        Validación de Origen (Error 400)
+                    </h3>
                     <div className="mb-2">
-                        <label className="text-xs font-bold text-slate-500 uppercase">Copia y pega esto en "Orígenes autorizados de JS":</label>
-                        <div className="bg-white border-2 border-red-300 rounded p-2 flex justify-between items-center mt-1">
+                        <label className="text-xs font-bold text-slate-500 uppercase">Tu URL actual (Pegar en Google Cloud):</label>
+                        <div className="bg-white border border-slate-300 rounded p-2 flex justify-between items-center mt-1">
                             <code className="text-xs font-mono text-slate-800 break-all select-all font-bold">{currentOrigin}</code>
                             <button 
                                 onClick={() => navigator.clipboard.writeText(currentOrigin)}
-                                className="ml-2 text-xs bg-red-100 hover:bg-red-200 text-red-800 px-3 py-1.5 rounded-md font-bold transition-colors shadow-sm shrink-0"
+                                className="ml-2 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded font-bold transition-colors shadow-sm shrink-0"
                             >
                                 COPIAR
                             </button>
@@ -105,13 +121,11 @@ const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({ onClose, onSaved })
                         {showHelp && (
                             <ul className="list-decimal list-inside space-y-2 text-xs mt-2 ml-1 text-blue-900">
                                 <li>Ve a <a href="https://console.cloud.google.com/" target="_blank" className="underline font-bold">Google Cloud Console</a>.</li>
-                                <li>Entra en <strong>APIs y servicios</strong> {'>'} <strong>Credenciales</strong>.</li>
-                                <li>Edita tu <strong>ID de cliente de OAuth 2.0</strong>.</li>
-                                <li>Pega la URL de arriba en <strong>Orígenes autorizados de JavaScript</strong>.</li>
-                                <li>
-                                    <strong>¡IMPORTANTE!</strong> En la sección <strong>Pantalla de consentimiento OAuth</strong>, asegúrate de haber añadido tu email en <strong>"Usuarios de prueba" (Test Users)</strong>.
-                                </li>
-                                <li>Espera 5 minutos a que Google actualice los cambios.</li>
+                                <li><strong>Habilita la API:</strong> Busca "Google Calendar API" y dale a "Enable".</li>
+                                <li>Entra en <strong>Credenciales</strong>.</li>
+                                <li>Crea una API Key y un Client ID (OAuth).</li>
+                                <li>En el Client ID, pega la URL de arriba en "Orígenes autorizados de JavaScript".</li>
+                                <li>En "Pantalla de consentimiento OAuth", añade tu email en "Test Users".</li>
                             </ul>
                         )}
                     </div>

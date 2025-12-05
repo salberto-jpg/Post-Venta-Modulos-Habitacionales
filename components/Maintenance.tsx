@@ -226,7 +226,8 @@ const Maintenance: React.FC = () => {
             }));
 
         const gEvents: CalendarEvent[] = googleEvents.map(evt => ({
-            title: `${evt.summary}`,
+            // ENMASCARAMIENTO DE PRIVACIDAD: Mostramos 'Ocupado' en lugar del título real
+            title: 'Ocupado', 
             start: evt.start.dateTime ? new Date(evt.start.dateTime) : new Date(evt.start.date!),
             end: evt.end.dateTime ? new Date(evt.end.dateTime) : new Date(evt.end.date!),
             allDay: !evt.start.dateTime,
@@ -252,9 +253,12 @@ const Maintenance: React.FC = () => {
         if (event.resource?.source === 'google') {
             style = {
                 ...baseStyle,
-                backgroundColor: '#ecfdf5', // emerald-50
-                color: '#047857', // emerald-700
-                borderLeftColor: '#10b981', // emerald-500
+                // Estilo "Ocupado" (Gris neutro)
+                backgroundColor: '#f1f5f9', // slate-100
+                color: '#64748b', // slate-500
+                borderLeftColor: '#94a3b8', // slate-400
+                fontStyle: 'italic',
+                opacity: 0.9
             };
         } else {
             const ticket = tickets.find(t => t.id === event.resource?.id);
@@ -274,8 +278,12 @@ const Maintenance: React.FC = () => {
         if (event.resource?.source === 'app') {
             const ticket = tickets.find(t => t.id === event.resource?.id);
             if (ticket) setSelectedTicket(ticket);
-        } else if (event.resource?.source === 'google' && event.resource.link) {
-            window.open(event.resource.link, '_blank');
+        } 
+        // Deshabilitado el click automático para eventos de Google para mantener la ilusión de "Ocupado" en la UI,
+        // aunque si el usuario quiere puede descomentar la línea de abajo para abrir el link en una pestaña nueva.
+        else if (event.resource?.source === 'google' && event.resource.link) {
+            // Opcional: Permitir al dueño del calendario ver sus propios eventos si hace clic
+             window.open(event.resource.link, '_blank');
         }
     };
 
@@ -325,8 +333,8 @@ const Maintenance: React.FC = () => {
                             <span className="text-sm font-semibold text-slate-600">Servicios GreenBox</span>
                         </div>
                         <div className="flex items-center">
-                            <span className={`w-3 h-3 rounded-full mr-2 shadow-sm transition-colors ${isGoogleConnected ? 'bg-emerald-500' : 'bg-slate-300'}`}></span> 
-                            <span className="text-sm font-semibold text-slate-600">Google Calendar</span>
+                            <span className={`w-3 h-3 rounded-full mr-2 shadow-sm transition-colors ${isGoogleConnected ? 'bg-slate-400' : 'bg-slate-200'}`}></span> 
+                            <span className="text-sm font-semibold text-slate-600">Google Calendar (Ocupado)</span>
                         </div>
                     </div>
                     
@@ -348,13 +356,13 @@ const Maintenance: React.FC = () => {
                                 </button>
                             </div>
                         ) : (
-                            <div className="flex items-center bg-emerald-50 px-2 py-1.5 rounded-lg border border-emerald-100">
+                            <div className="flex items-center bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-200">
                                 {googleUser && (
-                                    <div className="flex items-center mr-3 border-r border-emerald-200 pr-3">
+                                    <div className="flex items-center mr-3 border-r border-slate-200 pr-3">
                                         <img src={googleUser.picture} alt={googleUser.name} className="h-6 w-6 rounded-full mr-2" />
                                         <div className="flex flex-col">
-                                            <span className="text-xs font-bold text-emerald-800 leading-tight">{googleUser.name}</span>
-                                            <span className="text-[10px] text-emerald-600 leading-tight">{googleUser.email}</span>
+                                            <span className="text-xs font-bold text-slate-700 leading-tight">{googleUser.name}</span>
+                                            <span className="text-[10px] text-slate-500 leading-tight">{googleUser.email}</span>
                                         </div>
                                     </div>
                                 )}
@@ -364,7 +372,7 @@ const Maintenance: React.FC = () => {
                                 </div>
                                 <button 
                                     onClick={() => setIsSettingsOpen(true)}
-                                    className="p-1 text-emerald-400 hover:text-emerald-600 hover:bg-emerald-100 rounded mr-2"
+                                    className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded mr-2"
                                     title="Configuración"
                                 >
                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" /></svg>
@@ -459,6 +467,6 @@ const Maintenance: React.FC = () => {
 };
 
 const MapIcon: React.FC<{className?: string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.5-12.75a.75.75 0 01.75.75v14.25a.75.75 0 01-1.5 0V4.5a.75.75 0 01.75-.75zM3.75 12a.75.75 0 01.75-.75h14.25a.75.75 0 010 1.5H4.5a.75.75 0 01-.75-.75z" /></svg>;
-const TicketIcon: React.FC<{className?: string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-1.5h5.25m-5.25 0h5.25m-5.25 0h5.25M3 4.5h15a2.25 2.25 0 012.25 2.25v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75A2.25 2.25 0 013 4.5z" /></svg>;
+const TicketIcon: React.FC<{className?: string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-1.5h5.25m-5.25 0h5.25m-5.25 0h5.25m-5.25 0h5.25M3 4.5h15a2.25 2.25 0 012.25 2.25v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75A2.25 2.25 0 013 4.5z" /></svg>;
 
 export default Maintenance;
