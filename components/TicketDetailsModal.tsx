@@ -134,9 +134,21 @@ const TicketDetailsModal: React.FC<TicketDetailsModalProps> = ({ ticket: initial
                                         src={`https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${ticket.latitude},${ticket.longitude}&zoom=15`}
                                     ></iframe>
                                 ) : (
-                                    <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                                        <p className="font-bold mb-1">Mapa no disponible</p>
-                                        <p className="text-xs">(Falta API Key en Configuración)</p>
+                                    // MODO DEMO / SIMULACIÓN
+                                    <div 
+                                        className="w-full h-full bg-cover bg-center relative"
+                                        style={{
+                                            backgroundImage: `url('https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Google_Maps_Bremen.png/800px-Google_Maps_Bremen.png')`,
+                                            filter: 'grayscale(0.2)'
+                                        }}
+                                    >
+                                        <div className="absolute inset-0 bg-sky-900/10"></div>
+                                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                                             <div className="text-4xl drop-shadow-lg">📍</div>
+                                        </div>
+                                        <div className="absolute bottom-2 right-2 bg-white/80 backdrop-blur px-2 py-1 rounded text-[10px] text-slate-500 border border-slate-200">
+                                            Modo Demo (Simulación)
+                                        </div>
                                     </div>
                                 )}
                                 <a 

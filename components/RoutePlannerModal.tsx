@@ -171,34 +171,57 @@ const RoutePlannerModal: React.FC<RoutePlannerModalProps> = ({ tickets, onClose,
 
                     {/* Mapa (Derecha) */}
                     <div className="md:col-span-7 lg:col-span-8 h-full bg-slate-200 rounded-xl overflow-hidden shadow-inner border border-slate-300 relative">
-                        {apiKey ? (
-                            googleMapsEmbedUrl ? (
-                                <iframe
-                                    src={googleMapsEmbedUrl}
-                                    width="100%"
-                                    height="100%"
-                                    style={{ border: 0 }}
-                                    allowFullScreen={false}
-                                    loading="lazy"
-                                    referrerPolicy="no-referrer-when-downgrade"
-                                    className="w-full h-full"
-                                ></iframe>
-                            ) : (
-                                <div className="flex flex-col items-center justify-center h-full text-slate-500">
-                                    <span className="text-4xl mb-2">🗺️</span>
-                                    <p>No se puede previsualizar la ruta (faltan coordenadas).</p>
-                                </div>
-                            )
+                        {apiKey && googleMapsEmbedUrl ? (
+                            <iframe
+                                src={googleMapsEmbedUrl}
+                                width="100%"
+                                height="100%"
+                                style={{ border: 0 }}
+                                allowFullScreen={false}
+                                loading="lazy"
+                                referrerPolicy="no-referrer-when-downgrade"
+                                className="w-full h-full"
+                            ></iframe>
                         ) : (
-                            <div className="flex flex-col items-center justify-center h-full text-slate-500 p-8 text-center">
-                                <span className="text-4xl mb-4">⚙️</span>
-                                <h3 className="font-bold text-lg text-slate-700">API Key No Configurada</h3>
-                                <p className="mb-4 text-sm">Para ver el mapa, ve a la sección <b>Agenda</b>, haz clic en el engranaje ⚙️ e ingresa tu Google Cloud API Key.</p>
+                            // MODO DEMO / SIMULACIÓN
+                            <div className="relative w-full h-full bg-slate-100 overflow-hidden group">
+                                {/* Imagen de fondo de mapa genérico */}
+                                <div 
+                                    className="absolute inset-0 opacity-60 grayscale-[30%]"
+                                    style={{
+                                        backgroundImage: `url('https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Google_Maps_Bremen.png/800px-Google_Maps_Bremen.png')`,
+                                        backgroundSize: 'cover',
+                                        backgroundPosition: 'center'
+                                    }}
+                                ></div>
+                                
+                                {/* Overlay de ruta simulada */}
+                                <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                                    <path 
+                                        d="M100,100 Q250,150 400,300 T600,400" 
+                                        fill="none" 
+                                        stroke="#0ea5e9" 
+                                        strokeWidth="4" 
+                                        strokeDasharray="10,5"
+                                        className="drop-shadow-md animate-pulse"
+                                    />
+                                    <circle cx="100" cy="100" r="8" fill="#0ea5e9" stroke="white" strokeWidth="2" />
+                                    <circle cx="600" cy="400" r="8" fill="#ef4444" stroke="white" strokeWidth="2" />
+                                </svg>
+
+                                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white/90 backdrop-blur px-6 py-4 rounded-xl shadow-lg border border-slate-200 text-center">
+                                    <p className="text-2xl mb-2">🗺️</p>
+                                    <h3 className="font-bold text-slate-800">Modo Demo Activado</h3>
+                                    <p className="text-xs text-slate-500 max-w-xs mt-1">
+                                        El mapa real requiere una API Key configurada. 
+                                        Se muestra una simulación visual para fines de demostración.
+                                    </p>
+                                </div>
                             </div>
                         )}
                         
                         <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur px-4 py-2 rounded-lg text-xs font-medium text-slate-600 shadow-sm border border-slate-200">
-                             Vista previa de la ruta completa
+                             {apiKey ? "Vista previa de la ruta completa" : "Simulación de Ruta (Demo)"}
                         </div>
                     </div>
                 </div>

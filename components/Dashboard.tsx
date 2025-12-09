@@ -8,19 +8,18 @@ import TicketDetailsModal from './TicketDetailsModal';
 interface StatCardProps {
     title: string;
     value: string | number;
-    // FIX: Changed icon type to allow passing className via cloneElement.
     icon: React.ReactElement<{ className?: string }>;
     color: string;
 }
 
 const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color }) => (
-    <div className="bg-gradient-to-b from-slate-50 to-slate-100 rounded-lg shadow-md p-6 flex items-center border border-slate-300">
-        <div className={`p-3 rounded-full mr-4 ${color}`}>
+    <div className="bg-white rounded-2xl shadow-sm p-6 flex items-center border border-slate-100 hover:shadow-md transition-shadow">
+        <div className={`p-4 rounded-xl mr-5 shadow-sm ${color}`}>
             {React.cloneElement(icon, { className: 'h-8 w-8 text-white' })}
         </div>
         <div>
-            <p className="text-sm font-medium text-slate-600">{title}</p>
-            <p className="text-2xl font-bold text-slate-800">{value}</p>
+            <p className="text-sm font-bold text-slate-400 uppercase tracking-wide">{title}</p>
+            <p className="text-3xl font-black text-slate-800 mt-1">{value}</p>
         </div>
     </div>
 );
@@ -28,15 +27,15 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color }) => (
 const getStatusBadge = (status: TicketStatus) => {
     switch (status) {
         case TicketStatus.New:
-            return 'bg-sky-100 text-sky-800';
+            return 'bg-sky-100 text-sky-700 border-sky-200';
         case TicketStatus.InProgress:
-            return 'bg-amber-100 text-amber-800';
+            return 'bg-amber-100 text-amber-700 border-amber-200';
         case TicketStatus.Scheduled:
-            return 'bg-violet-100 text-violet-800';
+            return 'bg-violet-100 text-violet-700 border-violet-200';
         case TicketStatus.Closed:
-            return 'bg-emerald-100 text-emerald-800';
+            return 'bg-emerald-100 text-emerald-700 border-emerald-200';
         default:
-            return 'bg-slate-100 text-slate-800';
+            return 'bg-slate-100 text-slate-700 border-slate-200';
     }
 };
 
@@ -66,7 +65,6 @@ const Dashboard: React.FC = () => {
     }, []);
     
     const handleTicketStatusChange = (ticketId: string, newStatus: TicketStatus) => {
-        // Optimistically update UI
         setRecentTickets(prevTickets =>
             prevTickets.map(t => (t.id === ticketId ? { ...t, status: newStatus } : t))
         );
@@ -89,37 +87,50 @@ const Dashboard: React.FC = () => {
     return (
         <div>
             <h2 className="text-4xl md:text-7xl font-black text-slate-800 mb-8 tracking-tight">Dashboard</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <StatCard title="Tickets Nuevos" value={stats.newTickets} icon={<TicketIcon />} color="bg-gradient-to-br from-sky-500 to-sky-600" />
-                <StatCard title="Tickets por Agendar" value={stats.pendingMaintenance} icon={<WrenchScrewdriverIcon />} color="bg-gradient-to-br from-amber-500 to-amber-600" />
-                <StatCard title="Total de Clientes" value={stats.totalClients} icon={<UsersIcon />} color="bg-gradient-to-br from-emerald-500 to-emerald-600" />
-                <StatCard title="Módulos Instalados" value={stats.totalModules} icon={<HomeIcon />} color="bg-gradient-to-br from-slate-500 to-slate-600" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+                <StatCard title="Tickets Nuevos" value={stats.newTickets} icon={<TicketIcon />} color="bg-sky-500" />
+                <StatCard title="Por Agendar" value={stats.pendingMaintenance} icon={<WrenchScrewdriverIcon />} color="bg-amber-500" />
+                <StatCard title="Total Clientes" value={stats.totalClients} icon={<UsersIcon />} color="bg-emerald-500" />
+                <StatCard title="Módulos" value={stats.totalModules} icon={<HomeIcon />} color="bg-slate-500" />
             </div>
 
             <div className="mb-8">
-                <h3 className="text-2xl font-bold text-slate-700 mb-4">Tickets Recientes</h3>
+                <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-2xl font-bold text-slate-800">Actividad Reciente</h3>
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Últimos 5 tickets</span>
+                </div>
+                
                 <div className="flex flex-col gap-4">
                     {recentTickets.map(ticket => (
                         <div 
                             key={ticket.id} 
                             onClick={() => setSelectedTicket(ticket)}
-                            className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md transition-all cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4"
+                            className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 hover:border-sky-200 hover:shadow-md transition-all cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4 group"
                         >
-                            <div className="flex items-start gap-4">
-                                <div className={`p-3 rounded-xl bg-slate-50 shrink-0`}>
-                                     <TicketIcon className="h-6 w-6 text-slate-500" />
+                            <div className="flex items-start gap-5">
+                                <div className={`h-12 w-12 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                                    ticket.status === TicketStatus.New ? 'bg-sky-100 text-sky-600' :
+                                    ticket.status === TicketStatus.InProgress ? 'bg-amber-100 text-amber-600' :
+                                    ticket.status === TicketStatus.Closed ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'
+                                }`}>
+                                     <TicketIcon className="h-6 w-6" />
                                 </div>
                                 <div>
-                                    <h4 className="font-bold text-lg text-slate-800">{ticket.title}</h4>
-                                    <div className="text-sm text-slate-500 space-y-1 mt-1">
-                                        <p><span className="font-semibold text-slate-600">Cliente:</span> {ticket.clientName}</p>
-                                        <p><span className="font-semibold text-slate-600">Módulo:</span> {ticket.moduleSerial}</p>
+                                    <h4 className="font-bold text-lg text-slate-800 group-hover:text-sky-600 transition-colors">{ticket.title}</h4>
+                                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
+                                        <p className="text-sm text-slate-500 flex items-center">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-slate-300 mr-2"></span>
+                                            {ticket.clientName}
+                                        </p>
+                                        <p className="text-sm text-slate-400 font-mono bg-slate-50 px-1.5 rounded border border-slate-100">
+                                            {ticket.moduleSerial}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
                             
-                            <div className="flex items-center justify-between md:flex-col md:items-end gap-2 md:gap-1 pl-14 md:pl-0">
-                                <span className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full uppercase tracking-wide ${getStatusBadge(ticket.status)}`}>
+                            <div className="flex items-center justify-between md:flex-col md:items-end gap-2 md:gap-1 pl-16 md:pl-0">
+                                <span className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-lg uppercase tracking-wide border ${getStatusBadge(ticket.status)}`}>
                                     {ticket.status}
                                 </span>
                                 <span className="text-xs text-slate-400 font-medium">
