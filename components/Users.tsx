@@ -56,13 +56,25 @@ const Users: React.FC<UsersProps> = ({ userProfile }) => {
         try {
             const { data: existing } = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle();
             if (existing) return true;
-            console.log("Perfil no encontrado. Creando manualmente...");
+            
+            // Si el perfil no existe, lo creamos manualmente
             const { error: insertError } = await supabase.from('profiles').insert({
-                id: user.id, email: user.email, full_name: fullName, role: 'user', must_change_password: true
+                id: user.id, 
+                email: user.email, 
+                full_name: fullName, 
+                role: 'user', 
+                must_change_password: true
             });
-            if (insertError) { console.error("Error creando perfil manual:", insertError); return false; }
+            
+            if (insertError) { 
+                console.error("Error creando perfil manual:", insertError); 
+                return false; 
+            }
             return true;
-        } catch (e) { console.error("Excepción en ensureProfileExists:", e); return false; }
+        } catch (e) { 
+            console.error("Excepción en ensureProfileExists:", e); 
+            return false; 
+        }
     };
 
     const handleCreateUser = async (e: React.FormEvent) => {
@@ -71,7 +83,7 @@ const Users: React.FC<UsersProps> = ({ userProfile }) => {
         setIsCreating(true);
         
         try {
-            // Cliente temporal para registro (para no cerrar la sesión del admin actual)
+            // Cliente temporal para no cerrar la sesión del admin actual
             const tempClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { 
                 auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } 
             });
@@ -84,77 +96,57 @@ const Users: React.FC<UsersProps> = ({ userProfile }) => {
             });
 
             let createdUser = data.user;
+            let smtpErrorDetected = false;
 
-            // 2. Manejo de Errores Específicos
+            // 2. Análisis de Errores
             if (signUpError) {
                 const msg = signUpError.message.toLowerCase();
 
-                // CASO A: Registro desactivado en Supabase (Bloqueante)
-                if (msg.includes("signups not allowed")) {
-                    throw new Error(
-                        `⛔ BLOQUEO DE CONFIGURACIÓN:\n` +
-                        `Supabase tiene desactivado el registro de nuevos usuarios.\n\n` +
-                        `SOLUCIÓN:\n` +
-                        `1. Vaya a Supabase Dashboard > Settings > Auth (o Authentication).\n` +
-                        `2. Active la opción "Allow new users to sign up" (Permitir nuevos registros).\n` +
-                        `3. Guarde cambios e intente nuevamente.`
-                    );
-                }
-
-                // CASO B: Fallo SMTP (Correo)
-                // IMPORTANTE: Si 'createdUser' existe, ignoramos el error de correo y procedemos.
-                if (msg.includes("confirmation email") || msg.includes("error sending")) {
-                    if (!createdUser) {
-                        console.warn("Fallo SMTP y usuario null. Intentando recuperación vía login...");
-                        
-                        // Intentamos loguearnos para ver si el usuario se creó internamente a pesar del error
-                        const { data: loginData } = await tempClient.auth.signInWithPassword({ 
-                            email: newUserEmail, 
-                            password: newUserPassword 
-                        });
-                        
-                        if (loginData.user) {
-                            createdUser = loginData.user;
-                        } else {
-                            // Si falla el login también, es crítico
-                            throw new Error(
-                                `⚠️ ERROR SMTP CRÍTICO:\n` +
-                                `El usuario no pudo crearse porque falló el envío del correo y el sistema requiere validación.\n\n` +
-                                `SOLUCIÓN RÁPIDA (Entorno Desarrollo):\n` +
-                                `1. Vaya a Supabase > Authentication > Providers > Email.\n` +
-                                `2. Desactive "Confirm email" (Confirmar email).\n` +
-                                `3. Intente crear el usuario nuevamente.`
-                            );
-                        }
-                    }
-                    // Si createdUser existe, pasamos al paso 3 aunque haya error de correo.
+                // Caso 1: Supabase devuelve el usuario pero avisa que falló el correo (Warning)
+                if (createdUser && (msg.includes("confirmation email") || msg.includes("error sending"))) {
+                    smtpErrorDetected = true;
+                    console.warn("Usuario creado en Auth, pero falló SMTP:", msg);
+                } 
+                // Caso 2: Bloqueos reales
+                else if (msg.includes("signups not allowed")) {
+                    throw new Error("Supabase tiene bloqueado el registro de usuarios. Active 'Allow new users to sign up' en Authentication > Settings.");
                 } else if (msg.includes("already registered")) {
-                    throw new Error("Este correo electrónico ya está registrado en el sistema.");
-                } else if (!createdUser) {
-                    // Si no hay usuario y el error no es SMTP manejado, lo lanzamos
+                    throw new Error("Este correo ya está registrado.");
+                } else {
+                    // Si no hay usuario y hay error, fallamos.
                     throw signUpError;
                 }
             }
 
-            // 3. Finalización Exitosa (O Recuperada)
+            // 3. Creación del Perfil (Si el usuario existe en Auth)
             if (createdUser) {
                 const profileOk = await ensureProfileExists(createdUser, newUserFullName);
                 
-                if (signUpError) {
-                    alert(`⚠️ AVISO DE CORREO:\nEl usuario "${newUserFullName}" se creó correctamente en la base de datos, pero falló el envío del correo de bienvenida.\n\nCausa: ${signUpError.message}`);
+                if (profileOk) {
+                    if (smtpErrorDetected) {
+                        alert(
+                            `⚠️ ATENCIÓN: ERROR DE SMTP\n\n` +
+                            `El usuario "${newUserFullName}" fue creado exitosamente en la base de datos.\n` +
+                            `SIN EMBARGO, el sistema no pudo enviar el correo de confirmación.\n\n` +
+                            `Causa Técnica: ${signUpError?.message}\n\n` +
+                            `SOLUCIÓN:\n` +
+                            `1. Revise la configuración SMTP en Supabase (Password de aplicación incorrecto).\n` +
+                            `2. O puede confirmar el usuario manualmente desde el panel de Supabase.`
+                        );
+                    } else {
+                        alert(`✅ Usuario creado correctamente.\nSe ha enviado un correo de confirmación a ${newUserEmail}.`);
+                    }
+                    finishCreation();
+                    return;
                 } else {
-                    alert(`✅ Usuario ${newUserFullName} creado correctamente.`);
+                    throw new Error("El usuario se creó en Auth, pero falló la creación del perfil en la base de datos.");
                 }
-                
-                finishCreation();
-                return;
             }
 
-            throw new Error("Error desconocido: No se recibieron datos del usuario.");
+            throw new Error("No se pudo crear el usuario (Respuesta vacía de Supabase).");
 
         } catch (err: any) {
             console.error("Error creación:", err);
-            // Mostrar mensaje limpio si es error controlado, o raw si es inesperado
             const displayMsg = err.message || JSON.stringify(err);
             setError(displayMsg);
         } finally { 
@@ -296,7 +288,7 @@ const Users: React.FC<UsersProps> = ({ userProfile }) => {
                         </div>
                         
                         <div className="bg-slate-50 border border-slate-100 p-4 rounded-lg mb-6 text-xs text-slate-600">
-                            Complete los datos para dar de alta un nuevo acceso al sistema.
+                            Complete los datos para dar de alta un nuevo acceso al sistema. Se enviará un correo de confirmación.
                         </div>
 
                         <form onSubmit={handleCreateUser} className="space-y-5">

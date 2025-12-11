@@ -63,42 +63,50 @@ const calendarFormats: Formats = {
         `${localizer.format(start, 'HH:mm', culture)} - ${localizer.format(end, 'HH:mm', culture)}`,
 };
 
-// --- PREMIUM STYLES FOR CALENDAR ---
+// --- PREMIUM STYLES FOR CALENDAR (ROBUST VERSION) ---
 const customCalendarStyles = `
-    .rbc-calendar { font-family: inherit; border: none; }
+    .rbc-calendar { font-family: inherit; border: none !important; }
     
     /* Header Styling */
     .rbc-header {
-        padding: 12px 0;
-        font-size: 0.75rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: #94a3b8; /* Slate 400 */
-        border-bottom: 1px solid #e2e8f0;
+        padding: 12px 0 !important;
+        font-size: 0.75rem !important;
+        font-weight: 700 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.05em !important;
+        color: #94a3b8 !important; /* Slate 400 */
+        border-bottom: 1px solid #e2e8f0 !important;
+        background-color: transparent !important;
     }
     
     /* Grid Styling */
-    .rbc-month-view { border: 1px solid #f1f5f9; border-radius: 1rem; overflow: hidden; }
-    .rbc-month-row { border-top: 1px solid #f1f5f9; }
-    .rbc-day-bg + .rbc-day-bg { border-left: 1px solid #f1f5f9; }
+    .rbc-month-view { 
+        border: 1px solid #f1f5f9 !important; 
+        border-radius: 1rem !important; 
+        overflow: hidden !important; 
+        background: white !important;
+    }
+    .rbc-month-row { border-top: 1px solid #f1f5f9 !important; }
+    .rbc-day-bg + .rbc-day-bg { border-left: 1px solid #f1f5f9 !important; }
     
     /* Today Cell */
-    .rbc-today { background-color: #f8fafc; }
+    .rbc-today { background-color: #f8fafc !important; }
     
     /* Off-range days */
-    .rbc-off-range-bg { background-color: #fcfcfc; }
+    .rbc-off-range-bg { background-color: #fcfcfc !important; }
 
     /* Date Number Styling */
     .rbc-date-cell {
-        padding: 8px;
-        font-size: 0.85rem;
-        font-weight: 600;
-        color: #475569;
+        padding: 8px !important;
+        font-size: 0.85rem !important;
+        font-weight: 600 !important;
+        color: #475569 !important;
     }
+    
+    /* "Current Day" Circle Highlight */
     .rbc-now .rbc-button-link {
-        color: #0ea5e9; /* Sky 500 */
-        background: #e0f2fe;
+        color: #0ea5e9 !important; /* Sky 500 */
+        background: #e0f2fe !important;
         width: 28px;
         height: 28px;
         border-radius: 50%;
@@ -108,29 +116,89 @@ const customCalendarStyles = `
         margin-left: auto;
     }
 
-    /* Toolbar Styling */
-    .rbc-toolbar { margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px; }
-    .rbc-toolbar-label { font-size: 1.25rem; font-weight: 800; color: #1e293b; text-transform: capitalize; }
-    .rbc-btn-group { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); border-radius: 0.75rem; overflow: hidden; border: 1px solid #e2e8f0; }
-    .rbc-btn-group button { border: none; background: white; color: #64748b; font-weight: 600; padding: 0.5rem 1rem; font-size: 0.875rem; cursor: pointer; transition: all 0.2s; }
-    .rbc-btn-group button:hover { background: #f8fafc; color: #0f172a; }
-    .rbc-btn-group button.rbc-active { background: #0f172a; color: white; box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06); }
-    .rbc-btn-group button + button { border-left: 1px solid #e2e8f0; }
+    /* Toolbar Styling - FORCED TO FIX PRODUCTION ISSUE */
+    .rbc-toolbar { 
+        margin-bottom: 1.5rem !important; 
+        flex-wrap: wrap !important; 
+        gap: 10px !important; 
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+    }
+    .rbc-toolbar-label { 
+        font-size: 1.5rem !important; 
+        font-weight: 900 !important; 
+        color: #1e293b !important; 
+        text-transform: capitalize !important; 
+        flex-grow: 1 !important;
+        text-align: center !important;
+    }
+    
+    /* Button Group Fixing - Removing gaps */
+    .rbc-btn-group { 
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important; 
+        border-radius: 0.75rem !important; 
+        overflow: hidden !important; 
+        border: 1px solid #e2e8f0 !important; 
+        display: inline-flex !important;
+        background: white !important;
+    }
+    .rbc-btn-group > button { 
+        border: none !important; 
+        background: white !important; 
+        color: #64748b !important; 
+        font-weight: 600 !important; 
+        padding: 0.5rem 1rem !important; 
+        font-size: 0.875rem !important; 
+        cursor: pointer !important; 
+        transition: all 0.2s !important; 
+        margin: 0 !important; /* Crucial for removing gaps */
+        border-radius: 0 !important; /* Crucial for group look */
+        position: relative !important;
+        box-shadow: none !important;
+    }
+    /* Add separator line */
+    .rbc-btn-group > button + button { 
+        border-left: 1px solid #e2e8f0 !important; 
+    }
+    
+    .rbc-btn-group > button:hover { 
+        background: #f8fafc !important; 
+        color: #0f172a !important; 
+        z-index: 2 !important;
+    }
+    .rbc-btn-group > button.rbc-active { 
+        background: #0f172a !important; 
+        color: white !important; 
+        box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06) !important; 
+        z-index: 3 !important;
+    }
 
     /* Event Styling */
     .rbc-event {
-        background: transparent;
-        padding: 2px 4px;
-        border-radius: 6px;
-        margin-bottom: 3px;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-        transition: transform 0.1s;
+        background: transparent !important;
+        padding: 2px 4px !important;
+        border-radius: 6px !important;
+        margin-bottom: 3px !important;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+        transition: transform 0.1s !important;
+        border: none !important; /* Remove default border to use custom inline style */
     }
     .rbc-event:hover {
-        transform: scale(1.02);
-        z-index: 50;
+        transform: scale(1.02) !important;
+        z-index: 50 !important;
     }
-    .rbc-event-content { font-size: 0.75rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .rbc-event-content { 
+        font-size: 0.75rem !important; 
+        font-weight: 600 !important; 
+        white-space: nowrap !important; 
+        overflow: hidden !important; 
+        text-overflow: ellipsis !important; 
+    }
+    /* Hide default focus outlines */
+    .rbc-event:focus, .rbc-day-slot .rbc-background .rbc-day-bg:focus {
+        outline: none !important;
+    }
 `;
 
 interface CalendarEvent { title: string; start: Date; end: Date; allDay: boolean; resource?: { source: 'app' | 'google', id: string, link?: string }; }
