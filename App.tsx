@@ -71,7 +71,7 @@ const App: React.FC = () => {
             case 'tickets': return <Tickets />;
             case 'clients': return <Clients />;
             case 'documents': return <Documents />;
-            case 'maintenance': return <Maintenance />;
+            case 'maintenance': return <Maintenance userProfile={userProfile} />;
             case 'users': return <Users userProfile={userProfile} />;
             default: return <Dashboard />;
         }

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getAllTickets, updateTicketStatus } from '../services/supabaseService';
 import { initGoogleClient, loginToGoogle, fetchGoogleEvents, logoutFromGoogle, getGoogleUserProfile, hasValidConfig, isTokenValid, findAndMarkEventAsDone, getMockGoogleEvents, type GoogleCalendarEvent } from '../services/googleCalendarService';
-import { type Ticket, TicketStatus, Priority } from '../types';
+import { type Ticket, TicketStatus, Priority, type UserProfile } from '../types';
 import Spinner from './Spinner';
 import ScheduleTicketModal from './ScheduleTicketModal';
 import RoutePlannerModal from './RoutePlannerModal';
@@ -63,153 +63,199 @@ const calendarFormats: Formats = {
         `${localizer.format(start, 'HH:mm', culture)} - ${localizer.format(end, 'HH:mm', culture)}`,
 };
 
-// --- PREMIUM STYLES FOR CALENDAR (ROBUST VERSION) ---
+// --- PREMIUM STYLES FOR CALENDAR (ULTRA-ROBUST VERSION) ---
+// Usamos #calendar-wrapper para aumentar la especificidad al máximo y evitar conflictos en producción
 const customCalendarStyles = `
-    .rbc-calendar { font-family: inherit; border: none !important; }
-    
-    /* Header Styling */
-    .rbc-header {
-        padding: 12px 0 !important;
-        font-size: 0.75rem !important;
-        font-weight: 700 !important;
-        text-transform: uppercase !important;
-        letter-spacing: 0.05em !important;
-        color: #94a3b8 !important; /* Slate 400 */
-        border-bottom: 1px solid #e2e8f0 !important;
-        background-color: transparent !important;
+    /* Reset básico dentro del wrapper */
+    #calendar-wrapper .rbc-calendar { 
+        font-family: inherit; 
+        border: none !important; 
+        min-height: 600px;
     }
     
-    /* Grid Styling */
-    .rbc-month-view { 
-        border: 1px solid #f1f5f9 !important; 
-        border-radius: 1rem !important; 
-        overflow: hidden !important; 
-        background: white !important;
+    /* --- TOOLBAR & BUTTONS --- */
+    
+    /* Contenedor principal de la barra de herramientas */
+    #calendar-wrapper .rbc-toolbar {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        gap: 16px !important;
+        margin-bottom: 24px !important;
+        background: transparent !important;
+        padding: 0 !important;
     }
-    .rbc-month-row { border-top: 1px solid #f1f5f9 !important; }
-    .rbc-day-bg + .rbc-day-bg { border-left: 1px solid #f1f5f9 !important; }
-    
-    /* Today Cell */
-    .rbc-today { background-color: #f8fafc !important; }
-    
-    /* Off-range days */
-    .rbc-off-range-bg { background-color: #fcfcfc !important; }
 
-    /* Date Number Styling */
-    .rbc-date-cell {
-        padding: 8px !important;
-        font-size: 0.85rem !important;
-        font-weight: 600 !important;
-        color: #475569 !important;
+    /* Texto del mes/año (Título central) */
+    #calendar-wrapper .rbc-toolbar-label {
+        font-size: 1.5rem !important;
+        font-weight: 900 !important;
+        color: #1e293b !important; /* Slate 800 */
+        text-transform: capitalize !important;
+        flex-grow: 1 !important;
+        text-align: center !important;
+    }
+
+    /* Grupos de botones (Píldoras) */
+    #calendar-wrapper .rbc-btn-group {
+        display: inline-flex !important;
+        flex-direction: row !important;
+        border-radius: 12px !important;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+        background-color: white !important;
+        border: 1px solid #cbd5e1 !important; /* Slate 300 */
+        overflow: hidden !important;
+        margin: 0 !important;
+    }
+
+    /* Botones individuales */
+    #calendar-wrapper .rbc-btn-group > button {
+        border: none !important;
+        background-color: white !important;
+        color: #64748b !important; /* Slate 500 */
+        font-weight: 700 !important;
+        padding: 10px 20px !important;
+        font-size: 0.875rem !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        cursor: pointer !important;
+        box-shadow: none !important;
+        position: relative !important;
+        transition: all 0.2s ease !important;
+        outline: none !important;
+        float: none !important; /* Fix old clearfix issues */
+        line-height: 1.5 !important;
+    }
+
+    /* Línea divisoria entre botones */
+    #calendar-wrapper .rbc-btn-group > button + button {
+        border-left: 1px solid #cbd5e1 !important;
+    }
+
+    /* Hover */
+    #calendar-wrapper .rbc-btn-group > button:hover {
+        background-color: #f1f5f9 !important; /* Slate 100 */
+        color: #0f172a !important; /* Slate 900 */
+        z-index: 2 !important;
+    }
+
+    /* Active / Selected */
+    #calendar-wrapper .rbc-btn-group > button.rbc-active {
+        background-color: #0f172a !important; /* Slate 900 */
+        color: white !important;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.1) !important;
+        z-index: 3 !important;
+    }
+
+    /* --- GRID & CELLS --- */
+
+    /* Contenedor del mes */
+    #calendar-wrapper .rbc-month-view {
+        border: 1px solid #cbd5e1 !important; /* Slate 300 - Más visible */
+        border-radius: 16px !important;
+        background: white !important;
+        overflow: hidden !important;
+    }
+
+    /* Cabecera de días (LUN, MAR, etc.) */
+    #calendar-wrapper .rbc-header {
+        border-bottom: 1px solid #cbd5e1 !important;
+        padding: 12px 0 !important;
+        font-weight: 800 !important;
+        color: #64748b !important;
+        text-transform: uppercase !important;
+        font-size: 0.75rem !important;
+        letter-spacing: 0.05em !important;
+    }
+
+    /* Bordes internos de la grilla */
+    #calendar-wrapper .rbc-day-bg + .rbc-day-bg {
+        border-left: 1px solid #cbd5e1 !important;
     }
     
-    /* "Current Day" Circle Highlight */
-    .rbc-now .rbc-button-link {
-        color: #0ea5e9 !important; /* Sky 500 */
-        background: #e0f2fe !important;
+    #calendar-wrapper .rbc-month-row + .rbc-month-row {
+        border-top: 1px solid #cbd5e1 !important;
+    }
+
+    /* Fondo de días fuera del mes */
+    #calendar-wrapper .rbc-off-range-bg {
+        background-color: #f8fafc !important; /* Slate 50 */
+    }
+
+    /* Día Actual (Hoy) - Celda completa */
+    #calendar-wrapper .rbc-today {
+        background-color: #f0f9ff !important; /* Sky 50 */
+    }
+
+    /* Número del día */
+    #calendar-wrapper .rbc-date-cell {
+        padding: 8px !important;
+        font-weight: 600 !important;
+        color: #334155 !important;
+        font-size: 0.9rem !important;
+        text-align: right !important;
+    }
+
+    /* Highlight círculo para el número de "Hoy" */
+    #calendar-wrapper .rbc-now .rbc-button-link {
+        background-color: #0284c7 !important; /* Sky 600 */
+        color: white !important;
+        border-radius: 50%;
         width: 28px;
         height: 28px;
-        border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         margin-left: auto;
+        margin-right: 4px;
+        margin-top: 4px;
+        font-weight: bold !important;
     }
 
-    /* Toolbar Styling - FORCED TO FIX PRODUCTION ISSUE */
-    .rbc-toolbar { 
-        margin-bottom: 1.5rem !important; 
-        flex-wrap: wrap !important; 
-        gap: 10px !important; 
-        display: flex !important;
-        justify-content: space-between !important;
-        align-items: center !important;
-    }
-    .rbc-toolbar-label { 
-        font-size: 1.5rem !important; 
-        font-weight: 900 !important; 
-        color: #1e293b !important; 
-        text-transform: capitalize !important; 
-        flex-grow: 1 !important;
-        text-align: center !important;
-    }
+    /* --- EVENTS --- */
     
-    /* Button Group Fixing - Removing gaps */
-    .rbc-btn-group { 
-        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important; 
-        border-radius: 0.75rem !important; 
-        overflow: hidden !important; 
-        border: 1px solid #e2e8f0 !important; 
-        display: inline-flex !important;
-        background: white !important;
-    }
-    .rbc-btn-group > button { 
-        border: none !important; 
-        background: white !important; 
-        color: #64748b !important; 
-        font-weight: 600 !important; 
-        padding: 0.5rem 1rem !important; 
-        font-size: 0.875rem !important; 
-        cursor: pointer !important; 
-        transition: all 0.2s !important; 
-        margin: 0 !important; /* Crucial for removing gaps */
-        border-radius: 0 !important; /* Crucial for group look */
-        position: relative !important;
-        box-shadow: none !important;
-    }
-    /* Add separator line */
-    .rbc-btn-group > button + button { 
-        border-left: 1px solid #e2e8f0 !important; 
-    }
-    
-    .rbc-btn-group > button:hover { 
-        background: #f8fafc !important; 
-        color: #0f172a !important; 
-        z-index: 2 !important;
-    }
-    .rbc-btn-group > button.rbc-active { 
-        background: #0f172a !important; 
-        color: white !important; 
-        box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06) !important; 
-        z-index: 3 !important;
-    }
-
-    /* Event Styling */
-    .rbc-event {
+    #calendar-wrapper .rbc-event {
         background: transparent !important;
         padding: 2px 4px !important;
         border-radius: 6px !important;
-        margin-bottom: 3px !important;
+        margin-bottom: 4px !important;
         box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
         transition: transform 0.1s !important;
-        border: none !important; /* Remove default border to use custom inline style */
+        border: none !important;
     }
-    .rbc-event:hover {
+    
+    #calendar-wrapper .rbc-event:focus {
+        outline: none !important;
+    }
+
+    #calendar-wrapper .rbc-event:hover {
         transform: scale(1.02) !important;
         z-index: 50 !important;
     }
-    .rbc-event-content { 
-        font-size: 0.75rem !important; 
-        font-weight: 600 !important; 
-        white-space: nowrap !important; 
-        overflow: hidden !important; 
-        text-overflow: ellipsis !important; 
-    }
-    /* Hide default focus outlines */
-    .rbc-event:focus, .rbc-day-slot .rbc-background .rbc-day-bg:focus {
-        outline: none !important;
+
+    #calendar-wrapper .rbc-event-content {
+        font-size: 0.75rem !important;
+        font-weight: 700 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
     }
 `;
 
 interface CalendarEvent { title: string; start: Date; end: Date; allDay: boolean; resource?: { source: 'app' | 'google', id: string, link?: string }; }
 interface GoogleUser { name: string; picture: string; email: string; }
 
-const Maintenance: React.FC = () => {
+interface MaintenanceProps {
+    userProfile: UserProfile | null;
+}
+
+const Maintenance: React.FC<MaintenanceProps> = ({ userProfile }) => {
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [loading, setLoading] = useState(true);
     
     // Multi-Select Scheduling State
-    const [ticketsToSchedule, setTicketsToSchedule] = useState<Ticket[]>([]); // Array for batch scheduling
+    const [ticketsToSchedule, setTicketsToSchedule] = useState<Ticket[]>([]); 
     
     const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
     const [ticketModalMode, setTicketModalMode] = useState<'details' | 'close'>('details');
@@ -249,8 +295,6 @@ const Maintenance: React.FC = () => {
             if (userProfile) {
                 setGoogleUser(userProfile);
                 setIsGoogleConnected(true);
-                // We fetch events just to keep the connection alive/validated, 
-                // even if we don't display them anymore as per requirement.
                 const events = await fetchGoogleEvents();
                 setGoogleEvents(events);
             } else {
@@ -269,7 +313,6 @@ const Maintenance: React.FC = () => {
 
     const activateDemoMode = () => {
         setIsDemoMode(true);
-        // In Demo Mode we also mock Google Events but we won't display them in the calendar view
         setGoogleEvents(getMockGoogleEvents());
         setIsGoogleConnected(true); 
         setGoogleUser({
@@ -346,7 +389,7 @@ const Maintenance: React.FC = () => {
         const selected = pendingTickets.filter(t => selectedPendingIds.includes(t.id));
         setTicketsToSchedule(selected);
         setIsPendingListOpen(false);
-        setSelectedPendingIds([]); // Reset
+        setSelectedPendingIds([]); 
     };
 
     const handleTicketScheduled = async () => { await fetchTickets(); if(isGoogleConnected && !isDemoMode) loadGoogleData(); };
@@ -376,7 +419,6 @@ const Maintenance: React.FC = () => {
     };
     
     const handleTicketCompletedFromRoute = async (ticketId: string) => {
-        // DEMO MODE: Find mock ticket and open modal
         if (isDemoMode && ticketId.startsWith('demo-')) {
              const ticket = demoTickets.find(t => t.id === ticketId);
              if (ticket) {
@@ -386,7 +428,6 @@ const Maintenance: React.FC = () => {
              return;
         }
 
-        // REAL MODE: Open the closure modal to allow photo/desc entry
         const ticket = tickets.find(t => t.id === ticketId);
         if (ticket) {
             setTicketModalMode('close');
@@ -395,24 +436,19 @@ const Maintenance: React.FC = () => {
     };
 
     const handleTicketUpdated = (updatedTicket: Ticket) => {
-        // Handle Demo Mode Updates in Memory
         if (isDemoMode && updatedTicket.id.startsWith('demo-')) {
             setDemoTickets(prev => prev.map(t => t.id === updatedTicket.id ? updatedTicket : t));
             setRouteTickets(prev => prev.map(t => t.id === updatedTicket.id ? updatedTicket : t));
-            setSelectedTicket(updatedTicket); // Keep modal updated
+            setSelectedTicket(updatedTicket); 
             return;
         }
 
-        // Update general tickets list
         setTickets(prev => prev.map(t => t.id === updatedTicket.id ? updatedTicket : t));
-        // Update route tickets if open
         setRouteTickets(prev => prev.map(t => t.id === updatedTicket.id ? updatedTicket : t));
-        // Update detail view if open
         setSelectedTicket(updatedTicket);
     };
 
     const combinedEvents = useMemo(() => {
-        // We now only show APP events (Services), ignoring Google Events in the view
         const appEvents: CalendarEvent[] = tickets
             .filter(t => (t.status === TicketStatus.Scheduled || t.status === TicketStatus.Closed) && t.scheduledDate)
             .map(ticket => {
@@ -429,7 +465,6 @@ const Maintenance: React.FC = () => {
                 };
             });
 
-        // Filter out Google Events from display
         return appEvents;
     }, [tickets]);
 
@@ -437,15 +472,11 @@ const Maintenance: React.FC = () => {
         const ticket = tickets.find(t => t.id === event.resource?.id);
         const isCompleted = ticket?.status === TicketStatus.Closed;
         
-        // Premium Color Palette
-        // Scheduled: Violet/Blue gradient feel
-        // Closed: Emerald/Green
-        
         let style: any = {
             borderLeft: '4px solid',
-            color: isCompleted ? '#065f46' : '#1e40af', // Darker text for contrast
-            backgroundColor: isCompleted ? '#d1fae5' : '#dbeafe', // bg-emerald-100 vs bg-blue-100
-            borderLeftColor: isCompleted ? '#10b981' : '#3b82f6', // emerald-500 vs blue-500
+            color: isCompleted ? '#065f46' : '#1e40af', 
+            backgroundColor: isCompleted ? '#d1fae5' : '#dbeafe', 
+            borderLeftColor: isCompleted ? '#10b981' : '#3b82f6', 
             fontSize: '0.75rem',
             fontWeight: '600',
             borderRadius: '6px',
@@ -475,14 +506,13 @@ const Maintenance: React.FC = () => {
             
             {/* --- HERO HEADER PREMIUM --- */}
             <div className="relative bg-slate-900 text-white pb-24 pt-10 px-6 md:px-10 shadow-2xl overflow-hidden shrink-0">
-                {/* Background Decorativo */}
                 <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-violet-600 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse"></div>
                 <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 bg-sky-600 rounded-full mix-blend-multiply filter blur-3xl opacity-10"></div>
                 
                 <div className="relative z-10 max-w-8xl mx-auto flex flex-col xl:flex-row justify-between items-start xl:items-end gap-6">
                     <div>
                         <h1 className="text-3xl md:text-5xl font-black tracking-tight text-white leading-tight mb-2">
-                            Agenda Maestra
+                            Agenda de Servicio
                         </h1>
                         <p className="text-slate-400 text-sm md:text-base font-medium flex items-center">
                             <span className="bg-slate-800 px-2 py-0.5 rounded text-xs uppercase tracking-wide mr-2 border border-slate-700">Zona Horaria</span>
@@ -491,12 +521,13 @@ const Maintenance: React.FC = () => {
                     </div>
 
                     <div className="flex flex-wrap gap-3 items-center">
-                        {/* API Config Button */}
-                        <button onClick={() => setIsSettingsOpen(true)} className="bg-white/5 hover:bg-white/10 text-slate-300 p-2.5 rounded-xl border border-white/10 backdrop-blur-sm transition-colors" title="Configurar API">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                        </button>
+                        {/* API Config Button - Only for Admins */}
+                        {userProfile?.role === 'admin' && (
+                            <button onClick={() => setIsSettingsOpen(true)} className="bg-white/5 hover:bg-white/10 text-slate-300 p-2.5 rounded-xl border border-white/10 backdrop-blur-sm transition-colors" title="Configurar API">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                            </button>
+                        )}
 
-                        {/* Google Connect Button */}
                         {!isGoogleConnected ? (
                             <button onClick={handleGoogleLogin} className="flex items-center bg-white text-slate-800 font-bold text-sm px-4 py-2.5 rounded-xl hover:bg-slate-100 transition-colors shadow-lg">
                                 <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="h-4 w-4 mr-2" /> 
@@ -510,7 +541,6 @@ const Maintenance: React.FC = () => {
                             </div>
                         )}
 
-                        {/* Pending Tickets Button */}
                         <button 
                             onClick={() => setIsPendingListOpen(true)} 
                             className="bg-sky-600 text-white border border-sky-500 px-5 py-2.5 rounded-xl font-bold flex items-center shadow-lg hover:bg-sky-500 transition-all hover:-translate-y-0.5 active:translate-y-0"
@@ -531,19 +561,21 @@ const Maintenance: React.FC = () => {
             {/* --- CALENDAR CONTAINER (Overlap) --- */}
             <div className="max-w-8xl mx-auto px-4 w-full -mt-16 relative z-20 pb-10 flex-1 flex flex-col h-full">
                 
-                <div className="bg-white rounded-3xl shadow-xl h-full p-6 md:p-8 border border-slate-200 flex flex-col">
+                {/* 
+                    WRAPPER ID CRÍTICO: #calendar-wrapper 
+                    Este ID es usado por los estilos CSS definidos arriba para sobreescribir cualquier estilo global.
+                */}
+                <div id="calendar-wrapper" className="bg-white rounded-3xl shadow-xl h-full p-6 md:p-8 border border-slate-200 flex flex-col">
                     
                     {/* Toolbar & Route Picker Row */}
                     <div className="flex flex-col md:flex-row justify-between items-center mb-6 pb-6 border-b border-slate-100 gap-4">
                         <div className="flex items-center gap-4">
-                            {/* Legend */}
                             <div className="flex items-center gap-3 text-sm font-bold text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
                                 <div className="flex items-center"><span className="w-2.5 h-2.5 rounded bg-blue-500 mr-2"></span>Agendado</div>
                                 <div className="flex items-center"><span className="w-2.5 h-2.5 rounded bg-emerald-500 mr-2"></span>Realizado</div>
                             </div>
                         </div>
 
-                        {/* Route Date Picker */}
                         <div className="flex items-center bg-slate-100 rounded-xl p-1 shadow-inner">
                             <input 
                                 type="date" 
@@ -581,7 +613,7 @@ const Maintenance: React.FC = () => {
                 </div>
             </div>
 
-            {/* Modals remain mostly unchanged but functional */}
+            {/* Modals */}
             {isPendingListOpen && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[50] flex justify-center items-center p-4 animate-in fade-in" onClick={() => setIsPendingListOpen(false)}>
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[80vh] border border-slate-100" onClick={e => e.stopPropagation()}>
