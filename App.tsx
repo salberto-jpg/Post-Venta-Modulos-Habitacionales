@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -6,8 +7,10 @@ import Clients from './components/Clients';
 import Documents from './components/Documents';
 import Maintenance from './components/Maintenance';
 import ModuleCatalog from './components/ModuleCatalog';
+import Users from './components/Users';
 import Login from './components/Login';
 import Spinner from './components/Spinner';
+import ForcePasswordChange from './components/ForcePasswordChange'; // Import New Component
 import { supabase } from './services/supabaseClient';
 import { getCurrentUserProfile, signOut } from './services/supabaseService';
 import { type View, type UserProfile } from './types';
@@ -69,6 +72,7 @@ const App: React.FC = () => {
             case 'clients': return <Clients />;
             case 'documents': return <Documents />;
             case 'maintenance': return <Maintenance />;
+            case 'users': return <Users userProfile={userProfile} />;
             default: return <Dashboard />;
         }
     };
@@ -77,6 +81,11 @@ const App: React.FC = () => {
 
     if (!session) {
         return <Login onLoginSuccess={() => {}} />;
+    }
+
+    // CHECK PASSWORD FORCE CHANGE
+    if (userProfile?.mustChangePassword) {
+        return <ForcePasswordChange onPasswordChanged={fetchProfile} />;
     }
 
     return (

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { createDocument, getAllModuleTypes } from '../services/supabaseService';
 import { type ModuleType, type Document } from '../types';
@@ -7,12 +8,20 @@ import FileDropzone from './FileDropzone';
 interface AddDocumentModalProps { 
     onClose: () => void; 
     onDocumentAdded: () => void; 
-    initialTargetId?: string; // ID of a pre-selected module type
-    initialType?: string; // Pre-selected document category
-    lockModelSelection?: boolean; // If true, user cannot change the associated model
+    initialTargetId?: string; 
+    initialType?: string; 
+    lockModelSelection?: boolean;
+    context?: 'moduleType' | 'client' | 'module'; // New Prop to handle different contexts
 }
 
-const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ onClose, onDocumentAdded, initialTargetId, initialType, lockModelSelection = false }) => {
+const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ 
+    onClose, 
+    onDocumentAdded, 
+    initialTargetId, 
+    initialType, 
+    lockModelSelection = false,
+    context = 'moduleType'
+}) => {
     // For Module Types (Multi Select) - Default to initialTargetId if present
     const [selectedModuleTypeIds, setSelectedModuleTypeIds] = useState<string[]>(initialTargetId ? [initialTargetId] : []);
     
@@ -29,19 +38,24 @@ const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ onClose, onDocument
     const [error, setError] = useState('');
 
     useEffect(() => {
-        const fetchData = async () => {
-            setIsDataLoading(true);
-            try {
-                const moduleTypeData = await getAllModuleTypes();
-                setModuleTypes(moduleTypeData);
-            } catch (err) { 
-                setError('No se pudieron cargar los modelos.'); 
-            } finally { 
-                setIsDataLoading(false); 
-            }
-        };
-        fetchData();
-    }, []);
+        // Only fetch module types if we are in that context
+        if (context === 'moduleType') {
+            const fetchData = async () => {
+                setIsDataLoading(true);
+                try {
+                    const moduleTypeData = await getAllModuleTypes();
+                    setModuleTypes(moduleTypeData);
+                } catch (err) { 
+                    setError('No se pudieron cargar los modelos.'); 
+                } finally { 
+                    setIsDataLoading(false); 
+                }
+            };
+            fetchData();
+        } else {
+            setIsDataLoading(false);
+        }
+    }, [context]);
 
     const handleSelectAllModuleTypes = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.checked) {
@@ -77,7 +91,13 @@ const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ onClose, onDocument
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        if (selectedModuleTypeIds.length === 0) { setError('Seleccione al menos un modelo del catálogo.'); return; }
+        if (context === 'moduleType' && selectedModuleTypeIds.length === 0) { 
+            setError('Seleccione al menos un modelo del catálogo.'); return; 
+        }
+        if ((context === 'client' || context === 'module') && !initialTargetId) {
+            setError('Error de contexto: No se identificó el destino (Cliente/Módulo).'); return;
+        }
+
         if (!selectedFiles || selectedFiles.length === 0) { setError('Falta seleccionar el archivo.'); return; }
         
         setError(''); 
@@ -86,11 +106,15 @@ const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ onClose, onDocument
         try {
             const uploadPromises = [];
 
-            // Iterate through files and selected module types to create associations
             for (const file of selectedFiles) {
-                for (const typeId of selectedModuleTypeIds) {
-                    // Always uploading with context 'moduleType'
-                    uploadPromises.push(createDocument(typeId, 'moduleType', documentType, file, version));
+                if (context === 'moduleType') {
+                    // Multi-upload for module types
+                    for (const typeId of selectedModuleTypeIds) {
+                        uploadPromises.push(createDocument(typeId, 'moduleType', documentType, file, version));
+                    }
+                } else {
+                    // Single upload for Client or specific Module instance
+                    uploadPromises.push(createDocument(initialTargetId!, context, documentType, file, version));
                 }
             }
 
@@ -105,8 +129,12 @@ const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ onClose, onDocument
         }
     };
 
-    // Find the name of the locked model if applicable
-    const lockedModelName = lockModelSelection && initialTargetId 
+    // UI Logic for different contexts
+    const isGenericUpload = context === 'moduleType';
+    const titleText = context === 'client' ? 'Documento del Cliente' : context === 'module' ? 'Documento del Módulo' : 'Cargar Documento';
+
+    // Find the name of the locked model if applicable (only for moduleType context lock)
+    const lockedModelName = lockModelSelection && initialTargetId && isGenericUpload
         ? moduleTypes.find(m => m.id === initialTargetId)?.name 
         : 'Modelo Seleccionado';
 
@@ -114,58 +142,61 @@ const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ onClose, onDocument
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center" onClick={onClose}>
             <div className="bg-white rounded-lg shadow-xl w-full max-w-lg p-6 max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold text-slate-800">Cargar Documento</h2>
+                    <h2 className="text-xl font-bold text-slate-800">{titleText}</h2>
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-600">✕</button>
                 </div>
                 
                 <form onSubmit={handleSubmit} className="space-y-4 flex-1 overflow-y-auto pr-2">
                     
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Asociar a Modelo</label>
-                        
-                        {lockModelSelection ? (
-                            <div className="bg-slate-100 border border-slate-300 rounded-md p-3 text-slate-700 font-medium flex items-center">
-                                <span className="bg-sky-100 text-sky-800 text-xs px-2 py-1 rounded mr-2 uppercase font-bold">Fijo</span>
-                                {isDataLoading ? 'Cargando...' : lockedModelName}
-                            </div>
-                        ) : (
-                            <div className="border rounded-md p-3 max-h-56 overflow-y-auto bg-slate-50">
-                                {isDataLoading ? (
-                                    <div className="text-center py-4"><Spinner /></div>
-                                ) : (
-                                    <>
-                                        <div className="flex items-center mb-2 pb-2 border-b border-slate-200 sticky top-0 bg-slate-50 z-10">
-                                            <input 
-                                                type="checkbox" 
-                                                id="selectAll" 
-                                                checked={moduleTypes.length > 0 && selectedModuleTypeIds.length === moduleTypes.length}
-                                                onChange={handleSelectAllModuleTypes}
-                                                className="h-4 w-4 text-sky-600 rounded border-slate-300 focus:ring-sky-500 cursor-pointer"
-                                            />
-                                            <label htmlFor="selectAll" className="ml-2 text-sm font-bold text-slate-700 cursor-pointer select-none">Seleccionar Todos</label>
-                                        </div>
-                                        <div className="space-y-1">
-                                            {moduleTypes.map(m => (
-                                                <div key={m.id} className="flex items-center hover:bg-slate-100 p-1 rounded transition-colors">
-                                                    <input 
-                                                        type="checkbox" 
-                                                        id={`mt-${m.id}`}
-                                                        checked={selectedModuleTypeIds.includes(m.id)}
-                                                        onChange={() => handleModuleTypeToggle(m.id)}
-                                                        className="h-4 w-4 text-sky-600 rounded border-slate-300 focus:ring-sky-500 cursor-pointer"
-                                                    />
-                                                    <label htmlFor={`mt-${m.id}`} className="ml-2 text-sm text-slate-600 cursor-pointer select-none flex-1">
-                                                        {m.name}
-                                                    </label>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                        )}
-                        {!lockModelSelection && <p className="text-xs text-slate-500 mt-1">El documento se vinculará a todos los modelos seleccionados.</p>}
-                    </div>
+                    {/* Module Type Selector (Only visible if context is moduleType) */}
+                    {isGenericUpload && (
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">Asociar a Modelo</label>
+                            
+                            {lockModelSelection ? (
+                                <div className="bg-slate-100 border border-slate-300 rounded-md p-3 text-slate-700 font-medium flex items-center">
+                                    <span className="bg-sky-100 text-sky-800 text-xs px-2 py-1 rounded mr-2 uppercase font-bold">Fijo</span>
+                                    {isDataLoading ? 'Cargando...' : lockedModelName}
+                                </div>
+                            ) : (
+                                <div className="border rounded-md p-3 max-h-56 overflow-y-auto bg-slate-50">
+                                    {isDataLoading ? (
+                                        <div className="text-center py-4"><Spinner /></div>
+                                    ) : (
+                                        <>
+                                            <div className="flex items-center mb-2 pb-2 border-b border-slate-200 sticky top-0 bg-slate-50 z-10">
+                                                <input 
+                                                    type="checkbox" 
+                                                    id="selectAll" 
+                                                    checked={moduleTypes.length > 0 && selectedModuleTypeIds.length === moduleTypes.length}
+                                                    onChange={handleSelectAllModuleTypes}
+                                                    className="h-4 w-4 text-sky-600 rounded border-slate-300 focus:ring-sky-500 cursor-pointer"
+                                                />
+                                                <label htmlFor="selectAll" className="ml-2 text-sm font-bold text-slate-700 cursor-pointer select-none">Seleccionar Todos</label>
+                                            </div>
+                                            <div className="space-y-1">
+                                                {moduleTypes.map(m => (
+                                                    <div key={m.id} className="flex items-center hover:bg-slate-100 p-1 rounded transition-colors">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            id={`mt-${m.id}`}
+                                                            checked={selectedModuleTypeIds.includes(m.id)}
+                                                            onChange={() => handleModuleTypeToggle(m.id)}
+                                                            className="h-4 w-4 text-sky-600 rounded border-slate-300 focus:ring-sky-500 cursor-pointer"
+                                                        />
+                                                        <label htmlFor={`mt-${m.id}`} className="ml-2 text-sm text-slate-600 cursor-pointer select-none flex-1">
+                                                            {m.name}
+                                                        </label>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                            {!lockModelSelection && <p className="text-xs text-slate-500 mt-1">El documento se vinculará a todos los modelos seleccionados.</p>}
+                        </div>
+                    )}
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {!lockModelSelection && (
@@ -176,6 +207,7 @@ const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ onClose, onDocument
                                     <option value="warranty">Garantía</option>
                                     <option value="plan">Plano</option>
                                     <option value="contract">Contrato</option>
+                                    <option value="other">Otro</option>
                                 </select>
                             </div>
                         )}

@@ -273,3 +273,36 @@ export const findAndMarkEventAsDone = async (ticket: Ticket) => {
     }
     return false;
 };
+
+// --- DEMO MODE UTILS ---
+export const getMockGoogleEvents = (): GoogleCalendarEvent[] => {
+    const today = new Date();
+    const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+    const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+    const nextWeek = new Date(today); nextWeek.setDate(today.getDate() + 3);
+
+    const toDateString = (date: Date) => date.toISOString().split('T')[0];
+
+    return [
+        {
+            id: 'mock-1', summary: 'Reunión de Equipo', htmlLink: '#',
+            start: { dateTime: `${toDateString(today)}T09:00:00` }, end: { dateTime: `${toDateString(today)}T10:30:00` }
+        },
+        {
+            id: 'mock-2', summary: 'Almuerzo con Cliente', htmlLink: '#',
+            start: { dateTime: `${toDateString(today)}T13:00:00` }, end: { dateTime: `${toDateString(today)}T14:00:00` }
+        },
+        {
+            id: 'mock-3', summary: 'Visita Técnica: Green Box #44', htmlLink: '#',
+            start: { date: toDateString(yesterday) }, end: { date: toDateString(yesterday) }
+        },
+        {
+            id: 'mock-4', summary: 'Entrega de Materiales', htmlLink: '#',
+            start: { dateTime: `${toDateString(tomorrow)}T11:00:00` }, end: { dateTime: `${toDateString(tomorrow)}T12:00:00` }
+        },
+        {
+            id: 'mock-5', summary: 'Mantenimiento Preventivo (Externo)', htmlLink: '#',
+            start: { date: toDateString(nextWeek) }, end: { date: toDateString(nextWeek) }
+        }
+    ];
+};

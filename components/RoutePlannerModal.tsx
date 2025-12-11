@@ -2,21 +2,17 @@
 import React, { useMemo, useState } from 'react';
 import { type Ticket, TicketStatus } from '../types';
 import { getApiConfig } from '../services/googleCalendarService';
-import MessageModal from './MessageModal';
 
 interface RoutePlannerModalProps {
     tickets: Ticket[];
     onClose: () => void;
     onTicketComplete: (ticketId: string) => void;
+    isDemoMode?: boolean;
 }
 
-const RoutePlannerModal: React.FC<RoutePlannerModalProps> = ({ tickets, onClose, onTicketComplete }) => {
-    // Obtener la API Key dinámica guardada por el usuario
+const RoutePlannerModal: React.FC<RoutePlannerModalProps> = ({ tickets, onClose, onTicketComplete, isDemoMode = false }) => {
     const { apiKey } = getApiConfig();
     
-    // Estado para el modal de confirmación
-    const [ticketToComplete, setTicketToComplete] = useState<string | null>(null);
-
     // URL para EMBEBER en la página (Vista previa estática/interactiva básica)
     const googleMapsEmbedUrl = useMemo(() => {
         if (tickets.length < 1 || !apiKey) return ''; 
@@ -56,17 +52,34 @@ const RoutePlannerModal: React.FC<RoutePlannerModalProps> = ({ tickets, onClose,
         return url;
     }, [tickets]);
 
-    // Función para obtener link Waze
     const getWazeLink = (lat: number, lng: number) => `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
-    // Función para obtener link Google Maps directo al punto
     const getMapsLink = (lat: number, lng: number) => `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
 
-    const handleConfirmComplete = () => {
-        if (ticketToComplete) {
-            onTicketComplete(ticketToComplete);
-            setTicketToComplete(null);
-        }
+    // Helper para posiciones simuladas (Demo Mode)
+    const getSimulatedPosition = (index: number, total: number) => {
+        const positions = [
+            { x: 20, y: 20 },
+            { x: 45, y: 35 },
+            { x: 30, y: 60 },
+            { x: 70, y: 75 },
+            { x: 85, y: 40 },
+        ];
+        if (index < positions.length) return positions[index];
+        const stepY = 80 / (total + 1); 
+        const isEven = index % 2 === 0;
+        const top = 15 + (index * stepY) % 70; 
+        const left = isEven ? 25 : 75;
+        return { x: left, y: top };
     };
+
+    const simulatedPoints = useMemo(() => {
+        return tickets.map((t, i) => {
+            const pos = getSimulatedPosition(i, tickets.length);
+            return { ...t, simX: pos.x, simY: pos.y };
+        });
+    }, [tickets]);
+
+    const svgPolylinePoints = simulatedPoints.map(p => `${p.simX},${p.simY}`).join(' ');
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center" onClick={onClose}>
@@ -75,6 +88,7 @@ const RoutePlannerModal: React.FC<RoutePlannerModalProps> = ({ tickets, onClose,
                     <div>
                         <h2 className="text-2xl font-black text-slate-800 flex items-center">
                             <span className="mr-2">🚛</span> Ruta de Servicio
+                            {isDemoMode && <span className="ml-3 text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded font-bold uppercase border border-amber-200">Modo Demo</span>}
                         </h2>
                         <p className="text-sm text-slate-500">{tickets.length} paradas programadas</p>
                     </div>
@@ -91,7 +105,7 @@ const RoutePlannerModal: React.FC<RoutePlannerModalProps> = ({ tickets, onClose,
                         </a>
                         <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-100 rounded-lg">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </button>
                     </div>
@@ -150,7 +164,7 @@ const RoutePlannerModal: React.FC<RoutePlannerModalProps> = ({ tickets, onClose,
                                                 <div className="mt-2">
                                                     {!isCompleted ? (
                                                         <button 
-                                                            onClick={() => setTicketToComplete(ticket.id)}
+                                                            onClick={() => onTicketComplete(ticket.id)}
                                                             className="w-full px-3 py-2 text-xs font-bold text-white bg-emerald-600 rounded hover:bg-emerald-700 transition-colors shadow-sm flex items-center justify-center"
                                                         >
                                                             <span className="mr-1">✓</span> Marcar Completado
@@ -171,7 +185,7 @@ const RoutePlannerModal: React.FC<RoutePlannerModalProps> = ({ tickets, onClose,
 
                     {/* Mapa (Derecha) */}
                     <div className="md:col-span-7 lg:col-span-8 h-full bg-slate-200 rounded-xl overflow-hidden shadow-inner border border-slate-300 relative">
-                        {apiKey && googleMapsEmbedUrl ? (
+                        {apiKey && googleMapsEmbedUrl && !isDemoMode ? (
                             <iframe
                                 src={googleMapsEmbedUrl}
                                 width="100%"
@@ -182,62 +196,80 @@ const RoutePlannerModal: React.FC<RoutePlannerModalProps> = ({ tickets, onClose,
                                 referrerPolicy="no-referrer-when-downgrade"
                                 className="w-full h-full"
                             ></iframe>
-                        ) : (
-                            // MODO DEMO / SIMULACIÓN
-                            <div className="relative w-full h-full bg-slate-100 overflow-hidden group">
-                                {/* Imagen de fondo de mapa genérico */}
+                        ) : isDemoMode ? (
+                            /* SIMULACIÓN AVANZADA DE GOOGLE MAPS PARA DEMO */
+                            <div className="relative w-full h-full bg-[#E5E3DF] overflow-hidden group">
                                 <div 
-                                    className="absolute inset-0 opacity-60 grayscale-[30%]"
-                                    style={{
-                                        backgroundImage: `url('https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Google_Maps_Bremen.png/800px-Google_Maps_Bremen.png')`,
-                                        backgroundSize: 'cover',
-                                        backgroundPosition: 'center'
+                                    className="absolute inset-0 w-full h-full bg-cover bg-center opacity-80"
+                                    style={{ 
+                                        backgroundImage: 'url(https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Map_of_Milan.svg/2000px-Map_of_Milan.svg.png)',
+                                        filter: 'grayscale(0.1) contrast(0.9) brightness(1.1)' 
                                     }}
                                 ></div>
-                                
-                                {/* Overlay de ruta simulada */}
-                                <svg className="absolute inset-0 w-full h-full pointer-events-none">
-                                    <path 
-                                        d="M100,100 Q250,150 400,300 T600,400" 
-                                        fill="none" 
-                                        stroke="#0ea5e9" 
-                                        strokeWidth="4" 
-                                        strokeDasharray="10,5"
-                                        className="drop-shadow-md animate-pulse"
-                                    />
-                                    <circle cx="100" cy="100" r="8" fill="#0ea5e9" stroke="white" strokeWidth="2" />
-                                    <circle cx="600" cy="400" r="8" fill="#ef4444" stroke="white" strokeWidth="2" />
-                                </svg>
-
-                                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white/90 backdrop-blur px-6 py-4 rounded-xl shadow-lg border border-slate-200 text-center">
-                                    <p className="text-2xl mb-2">🗺️</p>
-                                    <h3 className="font-bold text-slate-800">Modo Demo Activado</h3>
-                                    <p className="text-xs text-slate-500 max-w-xs mt-1">
-                                        El mapa real requiere una API Key configurada. 
-                                        Se muestra una simulación visual para fines de demostración.
-                                    </p>
+                                <div className="absolute top-3 left-3 flex gap-0 shadow-md rounded-sm overflow-hidden z-20">
+                                    <div className="bg-white px-3 py-2 text-xs font-bold text-slate-700 cursor-pointer hover:bg-slate-50">Mapa</div>
+                                    <div className="bg-white px-3 py-2 text-xs font-medium text-slate-500 border-l cursor-pointer hover:bg-slate-50">Satélite</div>
                                 </div>
+                                <svg className="absolute inset-0 w-full h-full pointer-events-none z-10" viewBox="0 0 100 100" preserveAspectRatio="none">
+                                     <polyline 
+                                        points={svgPolylinePoints}
+                                        fill="none" 
+                                        stroke="rgba(0,0,0,0.2)" 
+                                        strokeWidth="1.5"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        transform="translate(0.5, 0.5)"
+                                     />
+                                     <polyline 
+                                        points={svgPolylinePoints}
+                                        fill="none" 
+                                        stroke="#4285F4" 
+                                        strokeWidth="1.2" 
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeOpacity="0.9"
+                                     />
+                                     {simulatedPoints.slice(0, -1).map((p, i) => {
+                                         const next = simulatedPoints[i+1];
+                                         const midX = (p.simX + next.simX) / 2;
+                                         const midY = (p.simY + next.simY) / 2;
+                                         return <circle key={`dot-${i}`} cx={midX} cy={midY} r="0.3" fill="white" fillOpacity="0.8" />
+                                     })}
+                                </svg>
+                                {simulatedPoints.map((t, i) => {
+                                    const isDone = t.status === TicketStatus.Closed;
+                                    const isLast = i === simulatedPoints.length - 1;
+                                    const bgColor = isDone ? 'bg-slate-500' : (isLast ? 'bg-red-600' : 'bg-red-500'); 
+                                    return (
+                                        <div 
+                                            key={t.id} 
+                                            className="absolute transform -translate-x-1/2 -translate-y-full z-30 cursor-pointer group hover:z-40"
+                                            style={{ top: `${t.simY}%`, left: `${t.simX}%` }}
+                                            title={t.address}
+                                            onClick={() => !isDone && onTicketComplete(t.id)}
+                                        >
+                                            <div className="relative flex flex-col items-center">
+                                                <div className={`w-8 h-8 rounded-full ${bgColor} border-2 border-white shadow-md flex items-center justify-center text-white font-bold text-sm z-20 hover:scale-110 transition-transform`}>
+                                                    {isDone ? '✓' : i + 1}
+                                                </div>
+                                                <div className={`w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] ${isDone ? 'border-t-slate-500' : (isLast ? 'border-t-red-600' : 'border-t-red-500')} -mt-1 shadow-sm`}></div>
+                                                <div className="w-3 h-1.5 bg-black/20 rounded-full blur-[1px] mt-0"></div>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center h-full text-slate-500 p-8 text-center bg-slate-50">
+                                <span className="text-4xl mb-4">⚙️</span>
+                                <h3 className="font-bold text-lg text-slate-700">API Key No Configurada</h3>
+                                <p className="mb-4 text-sm">Para ver el mapa real, ve a la configuración.</p>
                             </div>
                         )}
-                        
-                        <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur px-4 py-2 rounded-lg text-xs font-medium text-slate-600 shadow-sm border border-slate-200">
-                             {apiKey ? "Vista previa de la ruta completa" : "Simulación de Ruta (Demo)"}
-                        </div>
+                        {!isDemoMode && apiKey && <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur px-4 py-2 rounded-lg text-xs font-medium text-slate-600 shadow-sm border border-slate-200">Vista previa de la ruta completa</div>}
                     </div>
                 </div>
             </div>
-
-            {/* Modal de Confirmación Estético */}
-            <MessageModal 
-                isOpen={!!ticketToComplete}
-                onClose={() => setTicketToComplete(null)}
-                title="¿Finalizar Servicio?"
-                message="Confirmas que has realizado el servicio. El ticket se marcará como cerrado y completado."
-                type="success"
-                onConfirm={handleConfirmComplete}
-                confirmText="Sí, Completar"
-                cancelText="Cancelar"
-            />
         </div>
     );
 };

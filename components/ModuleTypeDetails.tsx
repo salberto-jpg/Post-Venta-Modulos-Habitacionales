@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { getDocumentsByModuleType, updateModuleType, deleteModuleType, deleteDocument } from '../services/supabaseService';
 import { type ModuleType, type Document } from '../types';
@@ -70,73 +71,101 @@ const ModuleTypeDetails: React.FC<ModuleTypeDetailsProps> = ({ moduleType: initi
     return (
         <div className="bg-white rounded-lg shadow-sm h-full flex flex-col">
             {/* Header */}
-            <div className="p-6 border-b border-slate-200">
-                <div className="flex justify-between items-center mb-4">
-                    <button onClick={onBack} className="text-sm text-slate-500 hover:text-sky-600 flex items-center">
+            <div className="p-6 md:p-10 border-b border-slate-200">
+                <div className="flex justify-between items-center mb-6 md:mb-8">
+                    <button onClick={onBack} className="text-sm text-slate-500 hover:text-sky-600 flex items-center font-bold uppercase tracking-wide">
                         &larr; Volver al Catálogo
                     </button>
                     <button 
                         onClick={() => setIsEditModalOpen(true)}
-                        className="text-sm text-sky-600 hover:text-sky-800 font-medium flex items-center border border-sky-200 bg-sky-50 px-3 py-1 rounded-md"
+                        className="text-sm text-sky-600 hover:text-sky-800 font-medium flex items-center border border-sky-200 bg-sky-50 px-4 py-2 rounded-lg transition-colors"
                     >
                         <PencilIcon className="h-4 w-4 mr-2" />
                         Editar Modelo
                     </button>
                 </div>
-                <div className="flex flex-col md:flex-row gap-6">
+                
+                <div className="flex flex-col md:flex-row gap-8 lg:gap-12">
+                    {/* Imagen con Recuadro Premium (Solo Desktop afecta tamaño grande) */}
                     {moduleType.imageUrl ? (
                         <div 
-                            className="w-full md:w-48 h-32 flex-shrink-0 rounded-lg overflow-hidden border border-slate-200 bg-white cursor-pointer group relative"
+                            className="w-full md:w-96 md:h-72 flex-shrink-0 rounded-2xl overflow-hidden border-4 border-white shadow-xl bg-white cursor-pointer group relative ring-1 ring-slate-200 transition-transform duration-300 hover:scale-[1.01]"
                             onClick={() => setPreviewImage(moduleType.imageUrl!)}
                         >
-                            <img src={moduleType.imageUrl} alt={moduleType.name} className="w-full h-full object-contain" />
+                            <div className="absolute inset-0 bg-slate-50/50 group-hover:bg-transparent transition-colors duration-300"></div>
+                            <img 
+                                src={moduleType.imageUrl} 
+                                alt={moduleType.name} 
+                                className="w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-500 ease-out" 
+                            />
+                            <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <span className="bg-slate-800/80 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">Ampliar 🔍</span>
+                            </div>
                         </div>
                     ) : (
-                         <div className="w-full md:w-48 h-32 flex-shrink-0 rounded-lg overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center">
-                             <span className="text-3xl">📦</span>
+                         <div className="w-full md:w-96 md:h-72 flex-shrink-0 rounded-2xl overflow-hidden border-4 border-white shadow-xl bg-slate-50 flex items-center justify-center ring-1 ring-slate-200">
+                             <div className="text-center text-slate-300">
+                                <span className="text-5xl mb-2 block">📦</span>
+                                <span className="text-sm font-bold uppercase">Sin Imagen</span>
+                             </div>
                          </div>
                     )}
-                    <div className="flex-1 flex justify-between items-start">
+
+                    {/* Descripción y Acciones */}
+                    <div className="flex-1 flex flex-col justify-between">
                         <div>
-                            <h2 className="text-3xl font-bold text-slate-800">{moduleType.name}</h2>
-                            <p className="text-slate-600 mt-2">{moduleType.description}</p>
+                            <h2 className="text-3xl md:text-5xl font-black text-slate-800 tracking-tight mb-4">{moduleType.name}</h2>
+                            <div className="h-1 w-20 bg-sky-500 mb-6 rounded-full"></div>
+                            <p className="text-slate-600 md:text-lg leading-relaxed">{moduleType.description}</p>
                         </div>
-                        <button 
-                            onClick={() => setIsUploadModalOpen(true)}
-                            className="bg-sky-600 text-white px-4 py-2 rounded-md shadow-sm hover:bg-sky-700 transition-colors flex items-center shrink-0 ml-4"
-                        >
-                            <ArrowUpTrayIcon className="h-5 w-5 mr-2" />
-                            Cargar {activeTab === 'plan' ? 'Plano' : activeTab === 'manual' ? 'Manual' : 'Garantía'}
-                        </button>
+                        
+                        <div className="mt-8 md:mt-0 pt-6 md:pt-0 flex flex-col md:flex-row items-start md:items-end justify-between border-t md:border-t-0 border-slate-100">
+                            <div className="hidden md:block">
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Documentación Disponbile</span>
+                                <div className="flex gap-2 mt-2">
+                                    <span className="h-2 w-2 rounded-full bg-sky-500"></span>
+                                    <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+                                    <span className="h-2 w-2 rounded-full bg-violet-500"></span>
+                                </div>
+                            </div>
+                            
+                            <button 
+                                onClick={() => setIsUploadModalOpen(true)}
+                                className="w-full md:w-auto bg-slate-900 text-white px-6 py-3 rounded-xl shadow-lg hover:bg-sky-600 transition-all duration-300 flex items-center justify-center font-bold"
+                            >
+                                <ArrowUpTrayIcon className="h-5 w-5 mr-2" />
+                                Cargar Documento
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
 
             {/* Tabs */}
-            <div className="flex border-b border-slate-200 px-6">
+            <div className="flex border-b border-slate-200 px-6 md:px-10 bg-slate-50/50">
                 <TabButton label="Planos Dimensionales" active={activeTab === 'plan'} onClick={() => setActiveTab('plan')} />
                 <TabButton label="Manuales de Instrucción" active={activeTab === 'manual'} onClick={() => setActiveTab('manual')} />
                 <TabButton label="Garantías" active={activeTab === 'warranty'} onClick={() => setActiveTab('warranty')} />
             </div>
 
             {/* Content */}
-            <div className="p-6 flex-1 overflow-y-auto bg-slate-50">
+            <div className="p-6 md:p-10 flex-1 overflow-y-auto bg-slate-50">
                 {filteredDocs.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {filteredDocs.map(doc => (
-                            <div key={doc.id} className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex items-start justify-between">
+                            <div key={doc.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-start justify-between hover:shadow-md transition-shadow group">
                                 <div className="flex items-start">
-                                    <div className="p-2 bg-slate-100 rounded mr-3">
-                                        <DocumentIcon className="h-6 w-6 text-slate-500" />
+                                    <div className="p-3 bg-slate-50 rounded-lg mr-4 border border-slate-100 group-hover:border-sky-100 group-hover:bg-sky-50 transition-colors">
+                                        <DocumentIcon className="h-6 w-6 text-slate-400 group-hover:text-sky-600" />
                                     </div>
                                     <div>
-                                        <h4 className="font-semibold text-slate-800">{doc.name}</h4>
+                                        <h4 className="font-bold text-slate-800 text-sm md:text-base">{doc.name}</h4>
                                         {doc.version && (
-                                            <span className="inline-block bg-sky-100 text-sky-800 text-xs px-2 py-0.5 rounded-full mt-1">
+                                            <span className="inline-block bg-slate-100 text-slate-600 border border-slate-200 text-[10px] px-2 py-0.5 rounded-md mt-1 font-bold">
                                                 v{doc.version}
                                             </span>
                                         )}
-                                        <p className="text-xs text-slate-500 mt-1">{new Date(doc.uploadedAt).toLocaleDateString()}</p>
+                                        <p className="text-xs text-slate-400 mt-1">{new Date(doc.uploadedAt).toLocaleDateString()}</p>
                                     </div>
                                 </div>
                                 <div className="flex flex-col items-end space-y-2">
@@ -144,13 +173,13 @@ const ModuleTypeDetails: React.FC<ModuleTypeDetailsProps> = ({ moduleType: initi
                                         href={doc.url} 
                                         target="_blank" 
                                         rel="noopener noreferrer" 
-                                        className="text-sky-600 hover:text-sky-800 text-sm font-medium"
+                                        className="text-sky-600 hover:text-sky-800 text-xs font-bold uppercase tracking-wider hover:underline"
                                     >
-                                        Ver
+                                        Ver PDF
                                     </a>
                                     <button 
                                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDocToDelete({id: doc.id, name: doc.name}); }}
-                                        className="text-red-500 hover:text-red-700 p-1 border border-red-100 bg-red-50 rounded"
+                                        className="text-slate-300 hover:text-red-500 transition-colors"
                                         title="Eliminar documento"
                                     >
                                         <TrashIcon className="h-4 w-4" />
@@ -160,14 +189,15 @@ const ModuleTypeDetails: React.FC<ModuleTypeDetailsProps> = ({ moduleType: initi
                         ))}
                     </div>
                 ) : (
-                    <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-                        <DocumentIcon className="h-12 w-12 mb-3 opacity-50" />
-                        <p className="text-lg font-medium">No hay documentos de tipo "{activeTab}"</p>
+                    <div className="flex flex-col items-center justify-center py-20 text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl">
+                        <DocumentIcon className="h-16 w-16 mb-4 opacity-20" />
+                        <p className="text-lg font-medium text-slate-500">No hay documentos de tipo "{activeTab}"</p>
+                        <p className="text-sm mb-6">Sube planos, manuales o garantías para este modelo.</p>
                         <button 
                             onClick={() => setIsUploadModalOpen(true)}
-                            className="mt-4 text-sky-600 hover:underline text-sm font-semibold"
+                            className="bg-white border border-slate-300 text-slate-600 px-4 py-2 rounded-lg hover:bg-slate-50 hover:text-sky-600 hover:border-sky-200 transition-all font-bold text-sm shadow-sm"
                         >
-                            Subir Documento Ahora
+                            + Subir Documento
                         </button>
                     </div>
                 )}
@@ -200,14 +230,19 @@ const ModuleTypeDetails: React.FC<ModuleTypeDetailsProps> = ({ moduleType: initi
             {/* Image Zoom */}
             {previewImage && (
                 <div 
-                    className="fixed inset-0 bg-black bg-opacity-90 z-[60] flex justify-center items-center p-4" 
+                    className="fixed inset-0 bg-white/95 backdrop-blur-sm z-[60] flex justify-center items-center p-8 cursor-zoom-out" 
                     onClick={() => setPreviewImage(null)}
                 >
                     <img 
                         src={previewImage} 
-                        className="max-h-[90vh] max-w-[90vw] object-contain rounded shadow-2xl"
+                        className="max-h-full max-w-full object-contain rounded-lg shadow-2xl border border-slate-200"
                         onClick={(e) => e.stopPropagation()} 
                     />
+                    <button className="absolute top-5 right-5 text-slate-400 hover:text-slate-800">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-12 h-12">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
                 </div>
             )}
             
@@ -227,8 +262,8 @@ const ModuleTypeDetails: React.FC<ModuleTypeDetailsProps> = ({ moduleType: initi
 const TabButton: React.FC<{ label: string; active: boolean; onClick: () => void }> = ({ label, active, onClick }) => (
     <button
         onClick={onClick}
-        className={`px-6 py-3 font-medium text-sm transition-colors border-b-2 ${
-            active ? 'border-sky-600 text-sky-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+        className={`px-6 py-4 font-bold text-sm transition-all border-b-[3px] ${
+            active ? 'border-sky-600 text-sky-700 bg-white' : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100/50'
         }`}
     >
         {label}
@@ -278,30 +313,33 @@ const EditModuleTypeModal: React.FC<{ moduleType: ModuleType; onClose: () => voi
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center" onClick={onClose}>
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
-                <h3 className="text-xl font-bold mb-4">Editar Modelo</h3>
-                <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center backdrop-blur-sm" onClick={onClose}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-8" onClick={e => e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-2xl font-black text-slate-800">Editar Modelo</h3>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600">✕</button>
+                </div>
+                <form onSubmit={handleSubmit} className="space-y-5">
                     <div>
-                        <label className="block text-sm font-medium text-slate-700">Nombre</label>
-                        <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full border p-2 rounded mt-1" required />
+                        <label className="block text-sm font-bold text-slate-700 mb-1">Nombre del Modelo</label>
+                        <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full border-slate-300 border p-3 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none" required />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-slate-700">Descripción</label>
-                        <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} className="w-full border p-2 rounded mt-1" required />
+                        <label className="block text-sm font-bold text-slate-700 mb-1">Descripción Técnica</label>
+                        <textarea value={description} onChange={e => setDescription(e.target.value)} rows={4} className="w-full border-slate-300 border p-3 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none" required />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-slate-700">Actualizar Imagen (Opcional)</label>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Actualizar Imagen (Opcional)</label>
                         <FileDropzone onFilesSelected={f => setFile(f[0])} accept={{ 'image/*': [] }} maxFiles={1} />
                         {file && (
-                             <div className="flex items-center justify-between p-3 bg-sky-50 border border-sky-200 rounded-md mt-2">
+                             <div className="flex items-center justify-between p-3 bg-sky-50 border border-sky-200 rounded-xl mt-3">
                                 <div className="flex items-center overflow-hidden">
-                                    <div className="h-10 w-10 rounded bg-white border border-sky-100 flex items-center justify-center mr-3 shrink-0">
+                                    <div className="h-10 w-10 rounded-lg bg-white border border-sky-100 flex items-center justify-center mr-3 shrink-0">
                                         <span className="text-xl">🖼️</span>
                                     </div>
                                     <div className="min-w-0">
                                         <p className="text-sm font-bold text-sky-800 truncate" title={file.name}>{file.name}</p>
-                                        <p className="text-xs text-sky-600">{formatBytes(file.size)}</p>
+                                        <p className="text-xs text-sky-600 font-medium">{formatBytes(file.size)}</p>
                                     </div>
                                 </div>
                                 <button type="button" onClick={() => setFile(null)} className="text-sky-500 hover:text-red-500 font-bold px-2">
@@ -310,18 +348,18 @@ const EditModuleTypeModal: React.FC<{ moduleType: ModuleType; onClose: () => voi
                             </div>
                         )}
                     </div>
-                    <div className="flex justify-between items-center pt-2">
+                    <div className="flex justify-between items-center pt-4 border-t border-slate-100 mt-2">
                         <button 
                             type="button" 
                             onClick={() => setShowDeleteConfirm(true)} 
                             disabled={isDeleting}
-                            className="text-red-600 text-sm font-bold hover:text-red-800 bg-red-50 hover:bg-red-100 px-3 py-2 rounded transition-colors"
+                            className="text-red-600 text-sm font-bold hover:text-red-800 bg-red-50 hover:bg-red-100 px-4 py-2 rounded-lg transition-colors"
                         >
                             {isDeleting ? 'Eliminando...' : 'Eliminar Modelo'}
                         </button>
-                        <div className="flex gap-2">
-                            <button type="button" onClick={onClose} className="px-4 py-2 border rounded">Cancelar</button>
-                            <button type="submit" disabled={loading} className="px-4 py-2 bg-sky-600 text-white rounded">{loading ? <Spinner /> : 'Guardar'}</button>
+                        <div className="flex gap-3">
+                            <button type="button" onClick={onClose} className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">Cancelar</button>
+                            <button type="submit" disabled={loading} className="px-6 py-2.5 text-sm font-bold bg-slate-900 text-white rounded-xl hover:bg-sky-600 shadow-md hover:shadow-lg transition-all">{loading ? <Spinner /> : 'Guardar Cambios'}</button>
                         </div>
                     </div>
                 </form>

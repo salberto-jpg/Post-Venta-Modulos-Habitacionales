@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { getAllClientsSummary } from '../services/supabaseService';
 import { type Client } from '../types';
@@ -27,10 +28,35 @@ const Clients: React.FC = () => {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 {clients.map(client => (
-                    <div key={client.id} onClick={() => setSelectedClient(client)} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 cursor-pointer hover:shadow-xl transition-all">
-                        <div className="flex justify-between mb-6"><div className="bg-slate-50 p-4 rounded-full"><UserIcon className="h-8 w-8 text-slate-400" /></div>{client.activeTickets > 0 && <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full font-bold text-sm">{client.activeTickets} Tickets</span>}</div>
-                        <h3 className="text-2xl font-bold text-slate-800 mb-1">{client.name}</h3><p className="text-slate-500">{client.email}</p>
-                        <div className="border-t mt-6 pt-6 grid grid-cols-2 gap-4"><div><p className="text-xs font-bold text-slate-400 uppercase">Módulos</p><p className="text-4xl font-extrabold text-slate-700">{client.moduleCount}</p></div><div><p className="text-xs font-bold text-slate-400 uppercase">Teléfono</p><p className="text-lg font-bold text-slate-600 truncate">{client.phone}</p></div></div>
+                    <div key={client.id} onClick={() => setSelectedClient(client)} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 cursor-pointer hover:shadow-xl hover:border-sky-200 transition-all group">
+                        <div className="flex justify-between items-start mb-6">
+                            <div className="bg-slate-50 p-4 rounded-full border border-slate-100 group-hover:bg-sky-50 group-hover:border-sky-100 transition-colors">
+                                <UserIcon className="h-8 w-8 text-slate-400 group-hover:text-sky-500 transition-colors" />
+                            </div>
+                            {client.activeTickets > 0 && (
+                                <div className="flex items-center gap-2 pl-3 pr-2 py-1.5 bg-amber-50 border border-amber-200 rounded-full shadow-sm">
+                                    <span className="text-[10px] font-bold uppercase text-amber-700 tracking-wider">
+                                        {client.activeTickets === 1 ? 'Ticket' : 'Tickets'}
+                                    </span>
+                                    <span className="flex items-center justify-center w-6 h-6 bg-amber-200 text-amber-800 text-xs font-black rounded-full shadow-inner">
+                                        {client.activeTickets}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                        <h3 className="text-2xl font-bold text-slate-800 mb-1 truncate" title={client.name}>{client.name}</h3>
+                        <p className="text-slate-500 truncate">{client.email}</p>
+                        
+                        <div className="border-t mt-6 pt-6 grid grid-cols-2 gap-4">
+                            <div>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Módulos</p>
+                                <p className="text-3xl font-black text-slate-700">{client.moduleCount}</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Teléfono</p>
+                                <p className="text-lg font-bold text-slate-600 truncate">{client.phone || '-'}</p>
+                            </div>
+                        </div>
                     </div>
                 ))}
             </div>

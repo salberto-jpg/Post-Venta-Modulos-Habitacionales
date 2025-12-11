@@ -18,7 +18,12 @@ const AddModuleInstanceModal: React.FC<AddModuleInstanceModalProps> = ({ clientI
     const [moduleTypes, setModuleTypes] = useState<ModuleType[]>([]);
     const [selectedTypeId, setSelectedTypeId] = useState('');
     const [serialNumber, setSerialNumber] = useState('');
-    const [installDate, setInstallDate] = useState('');
+    
+    // Dates
+    const [installDate, setInstallDate] = useState(''); // Fecha Técnica
+    const [deliveryDate, setDeliveryDate] = useState(''); // Fecha Comercial (Inicio Garantía)
+    const [warrantyExpiration, setWarrantyExpiration] = useState(''); // Fin Garantía
+
     const [loadingTypes, setLoadingTypes] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     
@@ -56,12 +61,34 @@ const AddModuleInstanceModal: React.FC<AddModuleInstanceModalProps> = ({ clientI
             setSelectedTypeId(moduleToEdit.moduleTypeId);
             setSerialNumber(moduleToEdit.serialNumber);
             setInstallDate(new Date(moduleToEdit.installationDate).toISOString().split('T')[0]);
+            
+            if (moduleToEdit.deliveryDate) {
+                setDeliveryDate(new Date(moduleToEdit.deliveryDate).toISOString().split('T')[0]);
+            }
+            if (moduleToEdit.warrantyExpiration) {
+                setWarrantyExpiration(new Date(moduleToEdit.warrantyExpiration).toISOString().split('T')[0]);
+            }
+
             if (moduleToEdit.latitude) setLatitude(moduleToEdit.latitude.toString());
             if (moduleToEdit.longitude) setLongitude(moduleToEdit.longitude.toString());
             if (moduleToEdit.address) setAddress(moduleToEdit.address);
         }
     }, [moduleToEdit]);
 
+    // Calcular garantía automática al cambiar fecha de entrega
+    const handleDeliveryDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newDate = e.target.value;
+        setDeliveryDate(newDate);
+        
+        if (newDate) {
+            const months = parseInt(localStorage.getItem('default_warranty_months') || '12');
+            const dateObj = new Date(newDate);
+            dateObj.setMonth(dateObj.getMonth() + months);
+            setWarrantyExpiration(dateObj.toISOString().split('T')[0]);
+        }
+    };
+
+    // ... (Resto de funciones de Google Maps y Geo se mantienen igual) ...
     // Helper para cargar el script de Google Maps si no está presente
     const loadGoogleMapsScript = (apiKey: string): Promise<void> => {
         if (typeof window !== 'undefined' && window.google && window.google.maps) {
@@ -70,8 +97,6 @@ const AddModuleInstanceModal: React.FC<AddModuleInstanceModalProps> = ({ clientI
         return new Promise((resolve, reject) => {
             const scriptId = 'google-maps-script-loader';
             if (document.getElementById(scriptId)) {
-                // Si ya se está cargando, esperar un poco (simple workaround) o simplemente resolver
-                // En un caso real usaríamos un singleton de carga, pero esto funciona para este contexto
                 setTimeout(resolve, 500); 
                 return;
             }
@@ -86,7 +111,6 @@ const AddModuleInstanceModal: React.FC<AddModuleInstanceModalProps> = ({ clientI
         });
     };
 
-    // Función para obtener dirección legible usando el Geocoder de la API JS (Evita CORS)
     const fetchAddressFromCoords = async (lat: number, lng: number) => {
         const { apiKey } = getApiConfig();
         if (!apiKey) return;
@@ -98,10 +122,9 @@ const AddModuleInstanceModal: React.FC<AddModuleInstanceModalProps> = ({ clientI
             geocoder.geocode({ location: { lat, lng } }, (results: any, status: any) => {
                 if (status === 'OK' && results && results[0]) {
                     setAddress(results[0].formatted_address);
-                    setGeoError(''); // Limpiar errores si tuvo éxito
+                    setGeoError(''); 
                 } else {
                     console.error("Geocoder failed due to: " + status);
-                    // No mostramos error al usuario para no interrumpir, pero logueamos
                 }
             });
         } catch (error) {
@@ -123,8 +146,6 @@ const AddModuleInstanceModal: React.FC<AddModuleInstanceModalProps> = ({ clientI
                 setLongitude(lng.toFixed(6));
                 setIsGettingLocation(false);
                 setGeoError('');
-                
-                // Auto-fetch address text
                 fetchAddressFromCoords(lat, lng);
             },
             (err) => {
@@ -150,6 +171,8 @@ const AddModuleInstanceModal: React.FC<AddModuleInstanceModalProps> = ({ clientI
                     moduleTypeId: selectedTypeId,
                     serialNumber,
                     installationDate: installDate,
+                    deliveryDate: deliveryDate || undefined,
+                    warrantyExpiration: warrantyExpiration || undefined,
                     latitude: latitude ? parseFloat(latitude) : undefined, 
                     longitude: longitude ? parseFloat(longitude) : undefined,
                     address
@@ -162,7 +185,9 @@ const AddModuleInstanceModal: React.FC<AddModuleInstanceModalProps> = ({ clientI
                     installDate, 
                     latitude ? parseFloat(latitude) : undefined, 
                     longitude ? parseFloat(longitude) : undefined,
-                    address
+                    address,
+                    deliveryDate,
+                    warrantyExpiration
                 );
             }
             onSuccess();
@@ -202,7 +227,7 @@ const AddModuleInstanceModal: React.FC<AddModuleInstanceModalProps> = ({ clientI
                     </div>
 
                     <div>
-                        <label className="block text-sm font-bold text-slate-700">N° Serie / ID Trazabilidad (Único)</label>
+                        <label className="block text-sm font-bold text-slate-700">N° Serie / ID Trazabilidad</label>
                         <input 
                             type="text" 
                             value={serialNumber} 
@@ -211,51 +236,70 @@ const AddModuleInstanceModal: React.FC<AddModuleInstanceModalProps> = ({ clientI
                             required
                             placeholder="Ej: MOD-2023-001"
                         />
-                        <p className="text-xs text-slate-500 mt-1">Este ID vincula la fabricación con el post-venta.</p>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700">Fecha de Instalación</label>
-                        <input 
-                            type="date" 
-                            value={installDate} 
-                            onChange={e => setInstallDate(e.target.value)}
-                            className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm"
-                            required
-                        />
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Fecha Instalación</label>
+                            <input 
+                                type="date" 
+                                value={installDate} 
+                                onChange={e => setInstallDate(e.target.value)}
+                                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm text-sm"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Fecha Entrega</label>
+                            <input 
+                                type="date" 
+                                value={deliveryDate} 
+                                onChange={handleDeliveryDateChange}
+                                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm text-sm"
+                            />
+                        </div>
                     </div>
+
+                    {deliveryDate && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-md p-3">
+                            <label className="block text-xs font-bold text-amber-700 mb-1">Vencimiento de Garantía</label>
+                            <input 
+                                type="date" 
+                                value={warrantyExpiration} 
+                                onChange={e => setWarrantyExpiration(e.target.value)}
+                                className="w-full px-3 py-2 bg-white border border-amber-300 rounded-md shadow-sm text-sm font-bold text-amber-900"
+                            />
+                            <p className="text-[10px] text-amber-600 mt-1">Calculado automáticamente desde entrega.</p>
+                        </div>
+                    )}
 
                     <div className="pt-4 border-t border-slate-100 mt-2">
                         <label className="block text-sm font-bold text-slate-700 mb-2">Ubicación de Instalación</label>
                         
-                        {/* Address Field */}
                         <div className="mb-3">
-                            <label className="block text-xs font-medium text-slate-500 mb-1">Dirección / Descripción del Lugar</label>
                             <textarea
                                 value={address}
                                 onChange={e => setAddress(e.target.value)}
                                 className="block w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500"
-                                placeholder="Ej: Calle 123, Barrio Norte (o autocompletar con GPS)"
+                                placeholder="Ej: Calle 123, Barrio Norte"
                                 rows={2}
                             />
                         </div>
 
                         <div className="flex space-x-2 mb-3">
                             <div className="w-1/2">
-                                <label className="block text-xs text-slate-400 mb-1">Latitud</label>
                                 <input 
                                     type="text" 
-                                    placeholder="-34.60..." 
+                                    placeholder="Latitud" 
                                     value={latitude} 
                                     onChange={e => setLatitude(e.target.value)}
                                     className="block w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-md" 
                                 />
                             </div>
                             <div className="w-1/2">
-                                <label className="block text-xs text-slate-400 mb-1">Longitud</label>
                                 <input 
                                     type="text" 
-                                    placeholder="-58.38..." 
+                                    placeholder="Longitud" 
                                     value={longitude} 
                                     onChange={e => setLongitude(e.target.value)}
                                     className="block w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-md" 
@@ -269,8 +313,7 @@ const AddModuleInstanceModal: React.FC<AddModuleInstanceModalProps> = ({ clientI
                                 onClick={handleGetLocation} 
                                 className="w-full flex items-center justify-center px-4 py-2 border border-sky-200 bg-sky-50 text-sky-700 rounded-md hover:bg-sky-100 transition-colors text-sm font-bold"
                             >
-                                <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                                {isGettingLocation ? 'Obteniendo GPS...' : 'Usar mi ubicación actual'}
+                                📍 {isGettingLocation ? 'Obteniendo GPS...' : 'Usar mi ubicación actual'}
                             </button>
                             
                             <button 
@@ -278,8 +321,7 @@ const AddModuleInstanceModal: React.FC<AddModuleInstanceModalProps> = ({ clientI
                                 onClick={() => setShowMapPicker(true)} 
                                 className="w-full flex items-center justify-center px-4 py-2 border border-slate-300 bg-white text-slate-700 rounded-md hover:bg-slate-50 transition-colors text-sm font-medium"
                             >
-                                <svg className="h-5 w-5 mr-2 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg>
-                                Seleccionar en Mapa
+                                🗺️ Seleccionar en Mapa
                             </button>
                         </div>
                         {geoError && <p className="text-xs text-red-500 mt-2 text-center">{geoError}</p>}
@@ -288,7 +330,7 @@ const AddModuleInstanceModal: React.FC<AddModuleInstanceModalProps> = ({ clientI
                     <div className="flex justify-end space-x-3 pt-4 border-t border-slate-100 mt-4">
                         <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 rounded-md">Cancelar</button>
                         <button type="submit" disabled={submitting} className="px-4 py-2 text-sm bg-sky-600 text-white rounded-md hover:bg-sky-700 disabled:opacity-50 font-bold shadow-sm">
-                            {submitting ? <Spinner /> : (moduleToEdit ? 'Guardar Cambios' : 'Registrar Módulo')}
+                            {submitting ? <Spinner /> : (moduleToEdit ? 'Guardar Cambios' : 'Guardar Módulo')}
                         </button>
                     </div>
                 </form>

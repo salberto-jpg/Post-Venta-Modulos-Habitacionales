@@ -1,9 +1,8 @@
 
-export type View = 'dashboard' | 'tickets' | 'clients' | 'documents' | 'maintenance' | 'catalog';
+export type View = 'dashboard' | 'tickets' | 'clients' | 'documents' | 'maintenance' | 'catalog' | 'users';
 
 export enum TicketStatus {
     New = 'Nuevo',
-    InProgress = 'En Progreso',
     Scheduled = 'Agendado',
     Closed = 'Cerrado'
 }
@@ -21,27 +20,26 @@ export interface UserProfile {
     email: string;
     role: UserRole;
     name?: string;
+    mustChangePassword?: boolean; // New field
 }
 
 export interface Client {
     id: string;
-    name: string; // Razón Social
-    fantasyName?: string; // Nombre de Fantasía
+    name: string; 
+    fantasyName?: string; 
     email: string;
     phone: string;
     secondaryPhone?: string;
     website?: string;
     
-    // Address Details
-    address?: string; // Calle y número
+    address?: string; 
     country?: string;
     province?: string;
     city?: string;
     zipCode?: string;
 
-    // Tax Details
     cuit?: string;
-    taxCondition?: string; // IVA (Responsable Inscripto, etc.)
+    taxCondition?: string; 
 
     notes?: string;
     createdAt: string;
@@ -58,11 +56,12 @@ export interface ModuleType {
 export interface Module {
     id: string;
     clientId: string;
-    moduleTypeId: string; // Link to the Catalog
-    modelName: string; // Keep for easier display, but derived from Type
+    moduleTypeId: string; 
+    modelName: string; 
     serialNumber: string;
-    installationDate: string;
-    warrantyExpiration?: string;
+    installationDate: string; // Fecha técnica de instalación
+    deliveryDate?: string;    // Fecha comercial de entrega (Inicio Garantía)
+    warrantyExpiration?: string; // Fin de garantía calculado
     latitude?: number;
     longitude?: number;
     address?: string;
@@ -76,6 +75,7 @@ export interface Ticket {
     description: string;
     status: TicketStatus;
     priority: Priority;
+    affectedPart?: string;
     createdAt: string;
     photos: string[];
     scheduledDate?: string;
@@ -84,16 +84,27 @@ export interface Ticket {
     latitude?: number;
     longitude?: number;
     address?: string;
+    
+    // New fields for Voice Notes and Closure Logic
+    audioUrl?: string;          // Audio created with the ticket
+    closureDescription?: string; // What was done
+    closurePhotos?: string[];    // Photos of the finished work
+    closureAudioUrl?: string;    // Audio note explaining the closure
+    
+    // Warranty & Billing
+    invoiceUrl?: string; // Legacy: URL de la factura principal
+    invoices?: string[]; // Lista de facturas o comprobantes
+    warrantyExpiration?: string; // Fecha de vencimiento de garantía del módulo asociado (JOIN)
 }
 
 export interface Document {
     id: string;
-    moduleId?: string; // Optional: Linked to specific installed instance
-    moduleTypeId?: string; // Optional: Linked to the generic Model Type
-    clientId?: string; // Optional: Linked directly to client (contracts, etc)
+    moduleId?: string; 
+    moduleTypeId?: string; 
+    clientId?: string; 
     name: string;
     type: 'manual' | 'warranty' | 'plan' | 'contract' | 'other';
-    version?: string; // Only for 'plan' or generic docs
+    version?: string; 
     url: string;
     uploadedAt: string;
 }

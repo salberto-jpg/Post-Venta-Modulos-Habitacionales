@@ -51,6 +51,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, userProf
                             <NavItem viewName="maintenance" label="Agenda" icon={<CalendarIcon />} currentView={currentView} onClick={setCurrentView} />
                             <NavItem viewName="clients" label="Clientes" icon={<UsersIcon />} currentView={currentView} onClick={setCurrentView} />
                             <NavItem viewName="documents" label="Docs" icon={<DocumentTextIcon />} currentView={currentView} onClick={setCurrentView} />
+                            {userProfile?.role === 'admin' && (
+                                <NavItem viewName="users" label="Usuarios" icon={<UserGroupIcon />} currentView={currentView} onClick={setCurrentView} />
+                            )}
                         </div>
                     </div>
                     
@@ -119,6 +122,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, userProf
                         <NavItem mobile viewName="maintenance" label="Agenda" icon={<CalendarIcon />} currentView={currentView} onClick={handleMobileNavClick} />
                         <NavItem mobile viewName="clients" label="Clientes" icon={<UsersIcon />} currentView={currentView} onClick={handleMobileNavClick} />
                         <NavItem mobile viewName="documents" label="Docs" icon={<DocumentTextIcon />} currentView={currentView} onClick={handleMobileNavClick} />
+                        {userProfile?.role === 'admin' && (
+                            <NavItem mobile viewName="users" label="Usuarios" icon={<UserGroupIcon />} currentView={currentView} onClick={handleMobileNavClick} />
+                        )}
                         
                         <div className="border-t border-slate-100 mt-2 pt-2 px-4 pb-2">
                             <div className="flex items-center justify-between">
@@ -145,4 +151,6 @@ const CalendarIcon: React.FC<{className?: string}> = ({className}) => <svg xmlns
 const MenuIcon: React.FC<{className?: string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>;
 const XIcon: React.FC<{className?: string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>;
 const UserCircleIcon: React.FC<{className?: string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}><path fillRule="evenodd" d="M18.685 19.097A9.723 9.723 0 0021.75 12c0-5.385-4.365-9.75-9.75-9.75S2.25 6.615 2.25 12a9.723 9.723 0 003.065 7.097A9.716 9.716 0 0012 21.75a9.716 9.716 0 006.685-2.653zm-12.54-1.285A7.486 7.486 0 0112 15a7.486 7.486 0 015.855 2.812A8.224 8.224 0 0112 20.25a8.224 8.224 0 01-5.855-2.438zM15.75 9a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" clipRule="evenodd" /></svg>;
+const UserGroupIcon: React.FC<{className?: string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-4.663M12 3.375c-3.418 0-6.167 2.749-6.167 6.167s2.749 6.167 6.167 6.167 6.167-2.749 6.167-6.167S15.418 3.375 12 3.375z" /></svg>;
+
 export default Sidebar;

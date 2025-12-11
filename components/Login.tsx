@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { signIn, signUp } from '../services/supabaseService';
+import { signIn } from '../services/supabaseService';
 import Spinner from './Spinner';
 
 interface LoginProps {
@@ -8,10 +8,8 @@ interface LoginProps {
 }
 
 const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
-    const [isSignUp, setIsSignUp] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [fullName, setFullName] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
@@ -20,29 +18,18 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         setLoading(true);
         setError('');
         try {
-            if (isSignUp) {
-                const data = await signUp(email, password, fullName);
-                // Si Supabase devuelve una sesión, el usuario entró directo (Confirm email disabled)
-                if (data.session) {
-                    onLoginSuccess();
-                } else {
-                    // Si no hay sesión, se requiere confirmación
-                    alert('Cuenta creada exitosamente. Se ha enviado un correo de confirmación a tu email. Por favor verifícalo antes de iniciar sesión.');
-                    setIsSignUp(false);
-                }
-            } else {
-                await signIn(email, password);
-                onLoginSuccess();
-            }
+            await signIn(email, password);
+            onLoginSuccess();
         } catch (err: any) {
             console.error(err);
-            // Manejo de errores específicos de Supabase
             if (err.message === 'Invalid login credentials') {
-                setError('Credenciales incorrectas. Verifique su correo y contraseña.');
-            } else if (err.message.includes('Email not confirmed')) {
-                setError('Tu correo electrónico no ha sido confirmado. Por favor revisa tu bandeja de entrada y confirma tu cuenta.');
+                setError('Credenciales incorrectas. Si es la primera vez, asegúrese de haber creado el usuario y ejecutado el script SQL.');
+            } else if (err.message && err.message.includes('Email not confirmed')) {
+                setError('Tu correo electrónico no ha sido confirmado.');
             } else {
-                setError(err.message || 'Error de autenticación.');
+                // Fix: Ensure we don't render [object Object]
+                const msg = err?.message || (typeof err === 'object' ? JSON.stringify(err) : String(err));
+                setError(msg || 'Error de autenticación desconocido.');
             }
         } finally {
             setLoading(false);
@@ -62,20 +49,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                 
                 <div className="p-8">
                     <form onSubmit={handleSubmit} className="space-y-6">
-                        {isSignUp && (
-                            <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-1">Nombre Completo</label>
-                                <input 
-                                    type="text" 
-                                    value={fullName} 
-                                    onChange={e => setFullName(e.target.value)}
-                                    className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all"
-                                    placeholder="Juan Pérez"
-                                    required 
-                                />
-                            </div>
-                        )}
-
                         <div>
                             <label className="block text-sm font-bold text-slate-700 mb-1">Correo Electrónico</label>
                             <input 
@@ -101,34 +74,25 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                         </div>
 
                         {error && (
-                            <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm border border-red-200 flex items-center">
-                                <svg className="h-5 w-5 mr-2 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <div className="bg-red-50 text-red-600 p-3 rounded-lg text-xs font-medium border border-red-200 flex items-start animate-in fade-in slide-in-from-top-2">
+                                <svg className="h-5 w-5 mr-2 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
-                                {error}
+                                <span className="break-words">{error}</span>
                             </div>
                         )}
 
                         <button 
                             type="submit" 
                             disabled={loading}
-                            className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all flex justify-center items-center"
+                            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all flex justify-center items-center"
                         >
-                            {loading ? <Spinner /> : (isSignUp ? 'Registrarse' : 'Ingresar al Sistema')}
+                            {loading ? <Spinner /> : 'Iniciar Sesión'}
                         </button>
                     </form>
                     
-                    <div className="mt-4 text-center">
-                        <button 
-                            onClick={() => { setIsSignUp(!isSignUp); setError(''); }}
-                            className="text-sky-600 hover:text-sky-800 text-sm font-bold hover:underline"
-                        >
-                            {isSignUp ? '¿Ya tienes cuenta? Inicia Sesión' : '¿No tienes cuenta? Regístrate'}
-                        </button>
-                    </div>
-
                     <div className="mt-6 text-center text-xs text-slate-400">
-                        &copy; {new Date().getFullYear()} Green Box Módulos. Todos los derechos reservados.
+                        &copy; {new Date().getFullYear()} Green Box Módulos. Acceso restringido.
                     </div>
                 </div>
             </div>

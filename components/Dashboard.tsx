@@ -27,9 +27,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color }) => (
 const getStatusBadge = (status: TicketStatus) => {
     switch (status) {
         case TicketStatus.New:
-            return 'bg-sky-100 text-sky-700 border-sky-200';
-        case TicketStatus.InProgress:
-            return 'bg-amber-100 text-amber-700 border-amber-200';
+            return 'bg-red-100 text-red-700 border-red-200';
         case TicketStatus.Scheduled:
             return 'bg-violet-100 text-violet-700 border-violet-200';
         case TicketStatus.Closed:
@@ -88,8 +86,8 @@ const Dashboard: React.FC = () => {
         <div>
             <h2 className="text-4xl md:text-7xl font-black text-slate-800 mb-8 tracking-tight">Dashboard</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-                <StatCard title="Tickets Nuevos" value={stats.newTickets} icon={<TicketIcon />} color="bg-sky-500" />
-                <StatCard title="Por Agendar" value={stats.pendingMaintenance} icon={<WrenchScrewdriverIcon />} color="bg-amber-500" />
+                <StatCard title="Tickets Nuevos" value={stats.newTickets} icon={<TicketIcon />} color="bg-red-500" />
+                <StatCard title="Agendados" value={stats.pendingMaintenance} icon={<WrenchScrewdriverIcon />} color="bg-violet-500" />
                 <StatCard title="Total Clientes" value={stats.totalClients} icon={<UsersIcon />} color="bg-emerald-500" />
                 <StatCard title="Módulos" value={stats.totalModules} icon={<HomeIcon />} color="bg-slate-500" />
             </div>
@@ -109,9 +107,8 @@ const Dashboard: React.FC = () => {
                         >
                             <div className="flex items-start gap-5">
                                 <div className={`h-12 w-12 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-                                    ticket.status === TicketStatus.New ? 'bg-sky-100 text-sky-600' :
-                                    ticket.status === TicketStatus.InProgress ? 'bg-amber-100 text-amber-600' :
-                                    ticket.status === TicketStatus.Closed ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'
+                                    ticket.status === TicketStatus.New ? 'bg-red-100 text-red-600' :
+                                    ticket.status === TicketStatus.Closed ? 'bg-emerald-100 text-emerald-600' : 'bg-violet-100 text-violet-600'
                                 }`}>
                                      <TicketIcon className="h-6 w-6" />
                                 </div>
@@ -157,7 +154,7 @@ const Dashboard: React.FC = () => {
 // Icons
 const TicketIcon: React.FC<{className?: string}> = ({className}) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-1.5h5.25m-5.25 0h5.25m-5.25 0h5.25m-5.25 0h5.25M3 4.5h15a2.25 2.25 0 012.25 2.25v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75A2.25 2.25 0 013 4.5z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-1.5h5.25m-5.25 0h5.25m-5.25 0h5.25M3 4.5h15a2.25 2.25 0 012.25 2.25v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75A2.25 2.25 0 013 4.5z" />
     </svg>
 );
 const WrenchScrewdriverIcon: React.FC<{className?: string}> = ({className}) => (
