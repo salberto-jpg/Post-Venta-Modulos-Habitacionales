@@ -44,6 +44,23 @@ export const updateUserPassword = async (newPassword: string): Promise<void> => 
     }
 };
 
+export const updateUserProfile = async (id: string, updates: { name?: string, role?: UserRole }): Promise<void> => {
+    const dbUpdates: any = {};
+    if (updates.name) dbUpdates.full_name = updates.name;
+    if (updates.role) dbUpdates.role = updates.role;
+
+    const { error } = await supabase.from('profiles').update(dbUpdates).eq('id', id);
+    if (error) throw error;
+};
+
+export const deleteUser = async (id: string): Promise<void> => {
+    // Nota: Esto elimina el perfil de la base de datos pública.
+    // El usuario de autenticación permanecerá en Supabase Auth hasta que se borre desde el panel admin,
+    // pero perderá acceso a la aplicación al no tener perfil.
+    const { error } = await supabase.from('profiles').delete().eq('id', id);
+    if (error) throw error;
+};
+
 export const getCurrentUserProfile = async (): Promise<UserProfile | null> => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
