@@ -40,13 +40,6 @@ const ModuleCatalog: React.FC = () => {
                     <h2 className="text-4xl md:text-6xl font-black text-slate-800 tracking-tight">Catálogo</h2>
                     <p className="text-slate-500 font-medium mt-2">Modelos y especificaciones técnicas disponibles</p>
                 </div>
-                <button 
-                    onClick={() => setIsCreateModalOpen(true)} 
-                    className="group bg-slate-900 text-white px-5 py-3 rounded-xl hover:bg-sky-600 transition-all duration-300 shadow-lg flex items-center font-bold"
-                >
-                    <span className="mr-2 text-xl group-hover:rotate-90 transition-transform duration-300">+</span>
-                    Nuevo Modelo
-                </button>
             </div>
 
             {/* Grid Section */}

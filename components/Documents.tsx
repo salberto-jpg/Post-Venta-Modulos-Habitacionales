@@ -28,6 +28,7 @@ const Documents: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isWarrantyConfigOpen, setIsWarrantyConfigOpen] = useState(false);
+    const [activeTab, setActiveTab] = useState<string>('all');
     
     // Modals state
     const [docToEdit, setDocToEdit] = useState<GroupedDocument | null>(null);
@@ -90,150 +91,180 @@ const Documents: React.FC = () => {
         }
     };
 
-    // 2. SECCIONES POR TIPO
-    const sections = [
-        { id: 'manual', title: 'Manuales de Usuario', icon: '📘', data: groupedDocuments.filter(d => d.type === 'manual') },
-        { id: 'plan', title: 'Planos Técnicos', icon: '📐', data: groupedDocuments.filter(d => d.type === 'plan') },
-        { id: 'warranty', title: 'Garantías', icon: '🛡️', data: groupedDocuments.filter(d => d.type === 'warranty') },
-        { id: 'contract', title: 'Contratos', icon: '📄', data: groupedDocuments.filter(d => d.type === 'contract') },
-        { id: 'other', title: 'Otros Documentos', icon: '📎', data: groupedDocuments.filter(d => !['manual', 'plan', 'warranty', 'contract'].includes(d.type)) },
+    // Filtros
+    const tabs = [
+        { id: 'all', label: 'Todos', icon: '📂' },
+        { id: 'manual', label: 'Manuales', icon: '📘' },
+        { id: 'plan', label: 'Planos', icon: '📐' },
+        { id: 'warranty', label: 'Garantías', icon: '🛡️' },
+        { id: 'contract', label: 'Contratos', icon: '📄' },
+        { id: 'other', label: 'Otros', icon: '📎' },
     ];
+
+    const filteredDocuments = useMemo(() => {
+        if (activeTab === 'all') return groupedDocuments;
+        return groupedDocuments.filter(d => d.type === activeTab);
+    }, [groupedDocuments, activeTab]);
+
+    const getDocumentIcon = (type: string) => {
+        switch (type) {
+            case 'manual': return '📘';
+            case 'plan': return '📐';
+            case 'warranty': return '🛡️';
+            case 'contract': return '📄';
+            default: return '📎';
+        }
+    };
 
     if (loading) return <div className="flex justify-center items-center h-full"><Spinner /></div>;
 
     return (
         <div>
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-slate-200 pb-6">
                 <div>
                     <h2 className="text-4xl md:text-7xl font-black text-slate-800 tracking-tight">Biblioteca</h2>
                     <p className="text-slate-500 font-medium mt-1">Gestión centralizada de documentación técnica</p>
                 </div>
-                <div className="flex gap-3 self-end md:self-auto">
+                <div>
                     <button 
                         onClick={() => setIsWarrantyConfigOpen(true)} 
-                        className="bg-white text-slate-600 border border-slate-300 px-6 py-3 rounded-xl font-bold hover:bg-slate-50 transition-colors shadow-sm flex items-center"
+                        className="bg-white text-slate-600 border border-slate-300 px-4 py-2 rounded-xl font-bold hover:bg-slate-50 transition-colors shadow-sm flex items-center text-sm"
                     >
-                        Configuración
-                    </button>
-                    <button onClick={() => setIsAddModalOpen(true)} className="bg-sky-600 text-white px-6 py-3 rounded-xl shadow-lg font-bold hover:bg-sky-700 transition-colors flex items-center">
-                        <span className="mr-2 text-xl">+</span> Cargar Documento
+                        <span className="mr-2">⚙️</span> Configuración
                     </button>
                 </div>
             </div>
             
-            <div className="space-y-12">
-                {sections.map(section => (
-                    section.data.length > 0 && (
-                        <div key={section.id} className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            <div className="flex items-center mb-4 border-b border-slate-200 pb-2">
-                                <span className="text-2xl mr-3">{section.icon}</span>
-                                <h3 className="text-2xl font-bold text-slate-700">{section.title}</h3>
-                                <span className="ml-3 bg-slate-100 text-slate-500 text-xs font-bold px-2 py-1 rounded-full">
-                                    {section.data.length}
-                                </span>
-                            </div>
-                            
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                                {section.data.map((docGroup, index) => (
-                                    <div key={index} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 hover:shadow-xl hover:border-sky-200 transition-all flex flex-col relative group">
-                                        
-                                        {/* Botón Editar */}
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); setDocToEdit(docGroup); }}
-                                            className="absolute top-3 right-3 p-1.5 text-slate-300 hover:text-sky-600 transition-colors bg-white rounded-full hover:bg-sky-50 z-10 border border-transparent hover:border-sky-100"
-                                            title="Editar y Gestionar Asociaciones"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-                                            </svg>
-                                        </button>
-
-                                        <div className="flex items-center mb-4">
-                                            <div className="h-12 w-12 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 mr-3 text-2xl">
-                                                {section.icon}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className="text-sm font-bold text-slate-800 leading-tight truncate" title={docGroup.name}>{docGroup.name}</h4>
-                                                {docGroup.version && (
-                                                    <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-100 px-1.5 py-0.5 rounded mt-1 inline-block">
-                                                        v{docGroup.version}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {/* Sección de Modelos Asociados (Interactivo) */}
-                                        <div className="mt-auto pt-3 border-t border-slate-100">
-                                            <div 
-                                                className="flex justify-between items-center cursor-pointer hover:bg-slate-50 p-1 -mx-1 rounded transition-colors"
-                                                onClick={() => setModelsViewModal(docGroup)}
-                                                title="Ver todos los modelos asociados"
-                                            >
-                                                <p className="text-[10px] uppercase font-bold text-slate-400">
-                                                    Asociado a {docGroup.associatedModels.length} {docGroup.associatedModels.length === 1 ? 'Modelo' : 'Modelos'}
-                                                </p>
-                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3 text-slate-300">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                                                </svg>
-                                            </div>
-                                            
-                                            <div className="flex flex-wrap gap-1 mt-2">
-                                                {docGroup.associatedModels.slice(0, 2).map((model, i) => (
-                                                    <span key={i} className="inline-flex max-w-full items-center px-2 py-1 rounded text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200 truncate">
-                                                        {model.name}
-                                                    </span>
-                                                ))}
-                                                {docGroup.associatedModels.length > 2 && (
-                                                    <button 
-                                                        onClick={(e) => { e.stopPropagation(); setModelsViewModal(docGroup); }}
-                                                        className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-indigo-50 text-indigo-600 border border-indigo-100 hover:bg-indigo-100 transition-colors"
-                                                    >
-                                                        +{docGroup.associatedModels.length - 2} ver todos
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        <div className="mt-4 flex gap-2">
-                                            <a 
-                                                href={docGroup.url} 
-                                                target="_blank" 
-                                                rel="noopener noreferrer" 
-                                                className="flex-1 py-2 text-center rounded-lg text-sky-700 font-bold bg-sky-50 hover:bg-sky-100 border border-sky-200 text-xs transition-colors"
-                                            >
-                                                Ver Archivo
-                                            </a>
-                                             <button 
-                                                onClick={(e) => { e.stopPropagation(); setGroupToDelete(docGroup); }}
-                                                className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
-                                                title="Eliminar documento y todas sus asociaciones"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )
+            {/* Tabs Navigation */}
+            <div className="flex overflow-x-auto pb-4 mb-4 gap-2 no-scrollbar">
+                {tabs.map(tab => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all flex items-center ${
+                            activeTab === tab.id 
+                                ? 'bg-slate-800 text-white shadow-md' 
+                                : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50 hover:text-slate-800'
+                        }`}
+                    >
+                        <span className="mr-2">{tab.icon}</span>
+                        {tab.label}
+                    </button>
                 ))}
             </div>
-            
-            {groupedDocuments.length === 0 && !loading && (
-                <div className="text-center py-20 bg-white rounded-2xl border-2 border-dashed border-slate-200">
-                    <div className="mx-auto h-16 w-16 text-slate-300 mb-4">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                        </svg>
-                    </div>
-                    <h3 className="text-lg font-medium text-slate-900">Biblioteca Vacía</h3>
-                    <p className="mt-1 text-sm text-slate-500">Sube planos o manuales para comenzar.</p>
-                </div>
-            )}
 
-            {isAddModalOpen && <AddDocumentModal onClose={() => setIsAddModalOpen(false)} onDocumentAdded={fetchDocuments} />}
+            {/* Grid Layout */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                
+                {/* Add New Document Card (Like Catalog) */}
+                <div 
+                    onClick={() => setIsAddModalOpen(true)}
+                    className="border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center p-8 text-slate-400 hover:border-sky-400 hover:text-sky-600 hover:bg-sky-50/50 transition-all cursor-pointer min-h-[220px] group relative bg-slate-50/30"
+                >
+                    <div className="w-14 h-14 rounded-full bg-white border border-slate-200 flex items-center justify-center mb-3 group-hover:shadow-md group-hover:scale-110 transition-all">
+                        <span className="text-2xl font-light text-slate-400 group-hover:text-sky-500">+</span>
+                    </div>
+                    <span className="font-bold text-base">Cargar Documento</span>
+                    <span className="text-xs mt-1 opacity-70">
+                        {activeTab !== 'all' ? `Añadir a ${tabs.find(t => t.id === activeTab)?.label}` : 'Agregar a la biblioteca'}
+                    </span>
+                </div>
+
+                {/* Documents Cards */}
+                {filteredDocuments.map((docGroup, index) => (
+                    <div key={index} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 hover:shadow-xl hover:border-sky-200 hover:-translate-y-1 transition-all flex flex-col relative group">
+                        
+                        {/* Botón Editar */}
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); setDocToEdit(docGroup); }}
+                            className="absolute top-3 right-3 p-1.5 text-slate-300 hover:text-sky-600 transition-colors bg-white rounded-full hover:bg-sky-50 z-10 border border-transparent hover:border-sky-100 opacity-0 group-hover:opacity-100"
+                            title="Editar y Gestionar Asociaciones"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                            </svg>
+                        </button>
+
+                        <div className="flex items-start mb-4">
+                            <div className="h-12 w-12 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 mr-3 text-2xl shrink-0 group-hover:bg-white group-hover:border-sky-100 transition-colors">
+                                {getDocumentIcon(docGroup.type)}
+                            </div>
+                            <div className="flex-1 min-w-0 pt-1">
+                                <h4 className="text-sm font-bold text-slate-800 leading-tight line-clamp-2" title={docGroup.name}>{docGroup.name}</h4>
+                                <div className="flex items-center mt-1 space-x-2">
+                                    {docGroup.version && (
+                                        <span className="text-[9px] font-bold text-sky-600 bg-sky-50 border border-sky-100 px-1.5 py-0.5 rounded">
+                                            v{docGroup.version}
+                                        </span>
+                                    )}
+                                    <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded uppercase">
+                                        {docGroup.type}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Sección de Modelos Asociados (Interactivo) */}
+                        <div className="mt-auto pt-3 border-t border-slate-100">
+                            <div 
+                                className="flex justify-between items-center cursor-pointer hover:bg-slate-50 p-1 -mx-1 rounded transition-colors"
+                                onClick={() => setModelsViewModal(docGroup)}
+                                title="Ver todos los modelos asociados"
+                            >
+                                <p className="text-[10px] uppercase font-bold text-slate-400">
+                                    {docGroup.associatedModels.length} {docGroup.associatedModels.length === 1 ? 'Modelo Asociado' : 'Modelos Asociados'}
+                                </p>
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3 text-slate-300">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                </svg>
+                            </div>
+                            
+                            <div className="flex flex-wrap gap-1 mt-2 h-6 overflow-hidden">
+                                {docGroup.associatedModels.slice(0, 2).map((model, i) => (
+                                    <span key={i} className="inline-flex max-w-full items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 truncate">
+                                        {model.name}
+                                    </span>
+                                ))}
+                                {docGroup.associatedModels.length > 2 && (
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-600 border border-indigo-100">
+                                        +{docGroup.associatedModels.length - 2}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="mt-4 flex gap-2 pt-2">
+                            <a 
+                                href={docGroup.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="flex-1 py-2 text-center rounded-lg text-sky-700 font-bold bg-sky-50 hover:bg-sky-100 border border-sky-200 text-xs transition-colors"
+                            >
+                                Ver Archivo
+                            </a>
+                             <button 
+                                onClick={(e) => { e.stopPropagation(); setGroupToDelete(docGroup); }}
+                                className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                                title="Eliminar documento y todas sus asociaciones"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Upload Modal - Pasa el tipo activo como inicial */}
+            {isAddModalOpen && (
+                <AddDocumentModal 
+                    onClose={() => setIsAddModalOpen(false)} 
+                    onDocumentAdded={fetchDocuments} 
+                    initialType={activeTab !== 'all' ? activeTab : 'manual'}
+                />
+            )}
             
             {docToEdit && <EditDocumentModal groupedDocument={docToEdit} onClose={() => setDocToEdit(null)} onSuccess={() => { setDocToEdit(null); fetchDocuments(); }} />}
             
